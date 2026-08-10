@@ -2,6 +2,7 @@ import { useCallback, type Dispatch, type SetStateAction } from "react";
 import type { ResourceSelection, ResourceType } from "../context/UIContext";
 import type { ComposeAction, ComposeDispatch, ComposeResource, ComposeService } from "../models/composeTypes";
 import type { ServiceTemplate } from "../data/templates";
+import { usePopup } from "../components/ui";
 
 type ResourceData = Partial<ComposeService> | Partial<ComposeResource>;
 
@@ -50,10 +51,19 @@ export function useProjectActions(
     selected: ResourceSelection | null,
     setSelected: Dispatch<SetStateAction<ResourceSelection | null>>,
     setShowTemplates: Dispatch<SetStateAction<boolean>>,
-    resetProject: () => boolean,
+    resetProject: () => void,
 ) {
-    const handleAdd = (type: ResourceType) => {
-        const name = prompt(`Enter ${type.slice(0, -1)} name:`)?.trim();
+    const popup = usePopup();
+
+    const handleAdd = async (type: ResourceType) => {
+        const singularType = type.slice(0, -1);
+        const displayType = `${singularType.charAt(0).toUpperCase()}${singularType.slice(1)}`;
+        const name = await popup.requestText({
+            title: `Add ${singularType}`,
+            description: `Choose a name for the new ${singularType}.`,
+            label: `${displayType} name`,
+            confirmLabel: "Add",
+        });
         if (!name) return;
         dispatch(actionForResource("ADD", type, name));
         setSelected({ type, name });
@@ -77,8 +87,14 @@ export function useProjectActions(
         setShowTemplates(false);
     };
 
-    const handleDelete = (type: ResourceType, name: string) => {
-        if (!confirm(`Delete ${name}?`)) return;
+    const handleDelete = async (type: ResourceType, name: string) => {
+        const confirmed = await popup.requestConfirmation({
+            title: `Delete ${name}?`,
+            description: "This action cannot be undone.",
+            confirmLabel: "Delete",
+            tone: "danger",
+        });
+        if (!confirmed) return;
         dispatch(actionForResource("DELETE", type, name));
         if (selected?.name === name) setSelected(null);
     };
@@ -90,8 +106,17 @@ export function useProjectActions(
         [dispatch, selected],
     );
 
-    const handleClearAll = () => {
-        if (resetProject()) setSelected(null);
+    const handleClearAll = async () => {
+        const confirmed = await popup.requestConfirmation({
+            title: "Clear all configuration?",
+            description: "This action cannot be undone.",
+            confirmLabel: "Clear all",
+            tone: "danger",
+        });
+        if (!confirmed) return;
+
+        resetProject();
+        setSelected(null);
     };
 
     return {

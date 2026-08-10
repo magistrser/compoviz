@@ -12,3 +12,5 @@ export { ArrayEditor } from "./ArrayEditor";
 export { TextArea } from "./TextArea";
 
 export { ToastProvider, useToast } from "./Toast";
+export { PopupProvider, usePopup } from "./Popup";
+export type { ConfirmationPopupOptions, PopupApi, TextPopupOptions } from "./Popup";

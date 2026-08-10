@@ -11,6 +11,7 @@ import {
     type Connection,
     type Edge,
     type Node,
+    type OnBeforeDelete,
     type OnNodeDrag,
     type ReactFlowInstance,
 } from "@xyflow/react";
@@ -25,6 +26,7 @@ import { mergeFlowElements } from "../utils/objectUtils";
 import { Download, Lightbulb, LightbulbOff } from "lucide-react";
 import { useCompose } from "../hooks/useCompose";
 import { useUI } from "../context/UIContext";
+import { usePopup } from "./ui";
 import type { ResourceType } from "../context/UIContext";
 import type { Position } from "../models/composeTypes";
 
@@ -69,6 +71,7 @@ export default function VisualBuilder() {
     // Get compose state from context
     const { state, dispatch, suggestions = [] } = useCompose();
     const { suggestionsEnabled, setSuggestionsEnabled } = useUI();
+    const popup = usePopup();
     const reactFlowWrapper = useRef<HTMLDivElement>(null);
     const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance<Node, Edge> | null>(null);
     const [selectedNode, setSelectedNode] = useState<SelectedNode | null>(null);
@@ -210,16 +213,39 @@ export default function VisualBuilder() {
         [state, dispatch],
     );
 
-    // Handle node deletion
+    // Confirm node deletion before React Flow removes controlled canvas state
+    const onBeforeDelete = useCallback<OnBeforeDelete<Node, Edge>>(
+        async ({ nodes: nodesToDelete }) => {
+            for (const node of nodesToDelete) {
+                const { type, name } = parseNodeId(node.id);
+                if (!isBuilderNodeType(type)) continue;
+
+                const confirmed = await popup.requestConfirmation({
+                    title: `Delete ${name}?`,
+                    description: "This action cannot be undone.",
+                    confirmLabel: "Delete",
+                    tone: "danger",
+                });
+                if (!confirmed) return false;
+            }
+
+            return true;
+        },
+        [popup],
+    );
+
+    // Apply node deletion after React Flow's pre-delete confirmation succeeds
     const onNodesDelete = useCallback(
         (deletedNodes: Node[]) => {
             for (const node of deletedNodes) {
                 const { type, name } = parseNodeId(node.id);
-                if (isBuilderNodeType(type)) handleDeleteResource(type, name);
+                if (!isBuilderNodeType(type)) continue;
+                handleDeleteResource(type, name);
             }
-            setSelectedNode(null);
+
+            if (selectedNode && deletedNodes.some((node) => node.id === selectedNode.id)) setSelectedNode(null);
         },
-        [handleDeleteResource],
+        [handleDeleteResource, selectedNode],
     );
 
     // Handle node drag stop - persist position
@@ -239,7 +265,7 @@ export default function VisualBuilder() {
     }, []);
 
     const onDrop = useCallback(
-        (event: DragEvent<HTMLDivElement>) => {
+        async (event: DragEvent<HTMLDivElement>) => {
             event.preventDefault();
 
             const type = event.dataTransfer.getData("application/reactflow");
@@ -250,34 +276,45 @@ export default function VisualBuilder() {
                 y: event.clientY,
             });
 
-            // Prompt for name and add
             const typeSingular = singularResourceTypes[type];
-            const name = prompt(`Enter ${typeSingular} name:`);
-            if (name?.trim()) {
-                addResource(type, name.trim(), position);
+            const displayType = `${typeSingular.charAt(0).toUpperCase()}${typeSingular.slice(1)}`;
+            const name = await popup.requestText({
+                title: `Add ${typeSingular}`,
+                description: `Choose a name for the new ${typeSingular}.`,
+                label: `${displayType} name`,
+                confirmLabel: "Add",
+            });
+            if (!name) return;
 
-                // Automatically open config panel for new node
-                const nodeType = singularResourceTypes[type];
-                setSelectedNode({ type: nodeType, name: name.trim(), id: `${nodeType}-${name.trim()}` });
-            }
+            addResource(type, name, position);
+
+            // Automatically open config panel for new node
+            const nodeType = singularResourceTypes[type];
+            setSelectedNode({ type: nodeType, name, id: `${nodeType}-${name}` });
         },
-        [reactFlowInstance, addResource],
+        [reactFlowInstance, addResource, popup],
     );
 
     // Handle add from toolbar click
     const handleAdd = useCallback(
-        (type: ResourceType) => {
+        async (type: ResourceType) => {
             const typeSingular = singularResourceTypes[type];
-            const name = prompt(`Enter ${typeSingular} name:`);
-            if (name?.trim()) {
-                addResource(type, name.trim());
+            const displayType = `${typeSingular.charAt(0).toUpperCase()}${typeSingular.slice(1)}`;
+            const name = await popup.requestText({
+                title: `Add ${typeSingular}`,
+                description: `Choose a name for the new ${typeSingular}.`,
+                label: `${displayType} name`,
+                confirmLabel: "Add",
+            });
+            if (!name) return;
 
-                // Automatically open config panel for new node
-                const nodeType = singularResourceTypes[type];
-                setSelectedNode({ type: nodeType, name: name.trim(), id: `${nodeType}-${name.trim()}` });
-            }
+            addResource(type, name);
+
+            // Automatically open config panel for new node
+            const nodeType = singularResourceTypes[type];
+            setSelectedNode({ type: nodeType, name, id: `${nodeType}-${name}` });
         },
-        [addResource],
+        [addResource, popup],
     );
 
     // Handle config panel update
@@ -291,13 +328,19 @@ export default function VisualBuilder() {
 
     // Handle delete from config panel
     const handleDelete = useCallback(
-        (type: BuilderNodeType, name: string) => {
-            if (confirm(`Delete ${name}?`)) {
-                handleDeleteResource(type, name);
-                setSelectedNode(null);
-            }
+        async (type: BuilderNodeType, name: string) => {
+            const confirmed = await popup.requestConfirmation({
+                title: `Delete ${name}?`,
+                description: "This action cannot be undone.",
+                confirmLabel: "Delete",
+                tone: "danger",
+            });
+            if (!confirmed) return;
+
+            handleDeleteResource(type, name);
+            setSelectedNode(null);
         },
-        [handleDeleteResource],
+        [handleDeleteResource, popup],
     );
 
     // Handle rename from config panel
@@ -369,6 +412,7 @@ export default function VisualBuilder() {
                     onConnect={onConnect}
                     onNodeClick={onNodeClick}
                     onNodeDoubleClick={onNodeDoubleClick}
+                    onBeforeDelete={onBeforeDelete}
                     onNodesDelete={onNodesDelete}
                     onEdgesDelete={onEdgesDelete}
                     onNodeDragStop={onNodeDragStop}

@@ -1,6 +1,6 @@
 import { Analytics } from "@vercel/analytics/react";
 import { BrowserRouter } from "react-router-dom";
-import { ToastProvider } from "../components/ui";
+import { PopupProvider, ToastProvider } from "../components/ui";
 import { UIProvider } from "../context/UIContext";
 import { ComposeProvider } from "../hooks/useCompose";
 import { AppRoutes } from "./router";
@@ -12,9 +12,11 @@ export default function App() {
         <BrowserRouter>
             <UIProvider>
                 <ComposeProvider>
-                    <ToastProvider>
-                        <AppRoutes />
-                    </ToastProvider>
+                    <PopupProvider>
+                        <ToastProvider>
+                            <AppRoutes />
+                        </ToastProvider>
+                    </PopupProvider>
                     {vercelAnalyticsEnabled && <Analytics />}
                 </ComposeProvider>
             </UIProvider>

@@ -14,7 +14,7 @@ const BuilderToolbar = memo(({ onAdd }: { onAdd: (type: ResourceType) => void })
         { type: "configs", label: "Config", icon: FileText, color: "text-cyan-400" },
     ];
 
-    const onDragStart = (event: DragEvent<HTMLDivElement>, type: ResourceType) => {
+    const onDragStart = (event: DragEvent<HTMLButtonElement>, type: ResourceType) => {
         event.dataTransfer.setData("application/reactflow", type);
         event.dataTransfer.effectAllowed = "move";
     };
@@ -24,8 +24,9 @@ const BuilderToolbar = memo(({ onAdd }: { onAdd: (type: ResourceType) => void })
             <div className="toolbar-label">Drag to add</div>
             <div className="toolbar-items">
                 {items.map(({ type, label, icon: Icon, color }) => (
-                    <div
+                    <button
                         key={type}
+                        type="button"
                         className="toolbar-item"
                         draggable
                         onDragStart={(e) => onDragStart(e, type)}
@@ -36,7 +37,7 @@ const BuilderToolbar = memo(({ onAdd }: { onAdd: (type: ResourceType) => void })
                             className={color}
                         />
                         <span>{label}</span>
-                    </div>
+                    </button>
                 ))}
             </div>
         </div>

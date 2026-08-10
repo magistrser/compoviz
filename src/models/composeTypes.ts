@@ -267,7 +267,7 @@ export interface ComposeContextValue {
     canUndo: boolean;
     canRedo: boolean;
     loadFiles: (content: string, files?: ImportFile[], overrides?: LoadFilesOverrides) => Promise<LoadFilesResult>;
-    resetProject: () => boolean;
+    resetProject: () => void;
     handleExport: () => void;
     handleYamlChange: (newYaml: string) => Promise<void>;
     setActiveProfiles: (profiles: string[]) => Promise<void>;

@@ -228,17 +228,16 @@ export function ComposeProvider({ children }: ComposeProviderProps) {
 
     // Action: Reset project to initial state
     const resetProject = useCallback(() => {
-        if (confirm("Are you sure you want to clear all configuration? This cannot be undone.")) {
-            dispatch({ type: "SET_STATE", payload: initialState });
-            setActiveProfiles([]);
-            setEnvironment({});
-            setProfiles([]);
-            setVariables([]);
-            setUndefinedVariables([]);
-            setParserErrors([]);
-            return true;
-        }
-        return false;
+        dispatch({ type: "SET_STATE", payload: initialState });
+        setActiveProfiles([]);
+        setEnvironment({});
+        setProfiles([]);
+        setProfileCounts({});
+        setVariables([]);
+        setUndefinedVariables([]);
+        setParserErrors([]);
+        setSourceYaml("");
+        lastFilesRef.current = [];
     }, [dispatch]);
 
     // Action: Export YAML file

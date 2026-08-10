@@ -4,7 +4,7 @@ import type { PropsWithChildren, ReactElement } from "react";
 import type { RenderOptions, RenderResult } from "@testing-library/react";
 import { ComposeProvider } from "../hooks/useCompose";
 import { UIProvider } from "../context/UIContext";
-import { ToastProvider } from "../components/ui";
+import { PopupProvider, ToastProvider } from "../components/ui";
 
 /**
  * Custom render function that wraps components with all necessary providers
@@ -17,7 +17,9 @@ export function renderWithProviders(
         return (
             <UIProvider>
                 <ComposeProvider>
-                    <ToastProvider>{children}</ToastProvider>
+                    <PopupProvider>
+                        <ToastProvider>{children}</ToastProvider>
+                    </PopupProvider>
                 </ComposeProvider>
             </UIProvider>
         );
