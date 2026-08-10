@@ -1,0 +1,89 @@
+import { useState } from "react";
+import { AlertCircle } from "lucide-react";
+import type { ResourceSelection, ResourceType } from "../../context/UIContext";
+import type { ValidationIssue } from "../../models/composeTypes";
+
+function isResourceType(value: string): value is ResourceType {
+    return ["services", "networks", "volumes", "secrets", "configs"].includes(value);
+}
+
+/**
+ * Issues panel for sidebar - shows expandable validation issues
+ */
+export const IssuesPanel = ({
+    errors,
+    onSelect,
+}: {
+    errors: ValidationIssue[];
+    onSelect: (selection: ResourceSelection) => void;
+}) => {
+    const [expanded, setExpanded] = useState(false);
+
+    if (errors.length === 0) return null;
+
+    return (
+        <div className="p-3 border-t border-border/50">
+            <button
+                onClick={() => setExpanded(!expanded)}
+                className="w-full flex items-center justify-between text-sm text-warning hover:text-warning/80 transition-colors"
+            >
+                <div className="flex items-center gap-2">
+                    <AlertCircle size={14} />
+                    <span>
+                        {errors.length} issue{errors.length !== 1 && "s"} found
+                    </span>
+                </div>
+                <span className="text-xs text-accent">{expanded ? "▲" : "▼"}</span>
+            </button>
+
+            {expanded && (
+                <div className="mt-3 space-y-2 max-h-48 overflow-auto animate-fade-in">
+                    {errors.map((error, idx) => {
+                        const selectionType = `${error.entity}s`;
+                        const canSelect = isResourceType(selectionType);
+                        return (
+                            <div
+                                key={idx}
+                                onClick={() => {
+                                    if (!canSelect) return;
+                                    if (isResourceType(selectionType)) {
+                                        onSelect({ type: selectionType, name: error.name });
+                                    }
+                                }}
+                                className={`p-2 rounded-lg border transition-all hover:brightness-110 ${canSelect ? "cursor-pointer" : "cursor-default"} ${
+                                    error.type === "error"
+                                        ? "bg-error/10 border-error/30"
+                                        : "bg-warning/10 border-warning/30"
+                                }`}
+                            >
+                                <div className="flex items-start gap-2">
+                                    {error.type === "error" ? (
+                                        <AlertCircle
+                                            size={12}
+                                            className="text-error mt-0.5"
+                                        />
+                                    ) : (
+                                        <AlertCircle
+                                            size={12}
+                                            className="text-warning mt-0.5"
+                                        />
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-medium truncate">{error.message}</p>
+                                        {error.entity && error.name && (
+                                            <p className="text-xs text-text-secondary mt-0.5">
+                                                {error.entity}: <span className="text-accent">{error.name}</span>
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default IssuesPanel;

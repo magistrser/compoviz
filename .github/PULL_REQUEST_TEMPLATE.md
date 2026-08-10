@@ -17,8 +17,9 @@ Fixes #(issue number)
 ## Checklist
 <!-- Mark completed items with an [x] -->
 - [ ] I have tested this code locally
-- [ ] The app builds without errors (`npm run build`)
-- [ ] The app runs without console errors (`npm run dev`)
+- [ ] Quality checks pass (`yarn check`)
+- [ ] The app builds without errors (`yarn build`)
+- [ ] The app runs without console errors (`yarn dev`)
 - [ ] I have added comments to complex code sections
 - [ ] My changes follow the existing code style
 - [ ] I have checked that there are no conflicts with the base branch

@@ -1,54 +1,108 @@
 <!doctype html>
 <html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <link
+            rel="icon"
+            type="image/png"
+            href="/favicon.png"
+        />
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0"
+        />
 
-<head>
-  <meta charset="UTF-8" />
-  <link rel="icon" type="image/png" href="/favicon.png" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <!-- Primary Meta Tags -->
+        <title>Compoviz | Visual Docker Compose Architect</title>
+        <meta
+            name="title"
+            content="Compoviz | Visual Docker Compose Architect"
+        />
+        <meta
+            name="description"
+            content="Transform your Docker infrastructure from static YAML to dynamic, visual architecture. Real-time diagrams, collision detection, and a premium visual IDE."
+        />
 
-  <!-- Primary Meta Tags -->
-  <title>Compoviz | Visual Docker Compose Architect</title>
-  <meta name="title" content="Compoviz | Visual Docker Compose Architect" />
-  <meta name="description"
-    content="Transform your Docker infrastructure from static YAML to dynamic, visual architecture. Real-time diagrams, collision detection, and a premium visual IDE." />
+        <!-- Open Graph / Facebook -->
+        <meta
+            property="og:type"
+            content="website"
+        />
+        <meta
+            property="og:url"
+            content="https://www.compoviz.pro/"
+        />
+        <meta
+            property="og:title"
+            content="Compoviz | Visual Docker Compose Architect"
+        />
+        <meta
+            property="og:description"
+            content="Transform your Docker infrastructure from static YAML to dynamic, visual architecture. Real-time diagrams, collision detection, and a premium visual IDE."
+        />
+        <meta
+            property="og:image"
+            content="https://www.compoviz.pro/og-image.png"
+        />
 
-  <!-- Open Graph / Facebook -->
-  <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://www.compoviz.pro/" />
-  <meta property="og:title" content="Compoviz | Visual Docker Compose Architect" />
-  <meta property="og:description"
-    content="Transform your Docker infrastructure from static YAML to dynamic, visual architecture. Real-time diagrams, collision detection, and a premium visual IDE." />
-  <meta property="og:image" content="https://www.compoviz.pro/og-image.png" />
+        <!-- Twitter -->
+        <meta
+            property="twitter:card"
+            content="summary_large_image"
+        />
+        <meta
+            property="twitter:url"
+            content="https://www.compoviz.pro/"
+        />
+        <meta
+            property="twitter:title"
+            content="Compoviz | Visual Docker Compose Architect"
+        />
+        <meta
+            property="twitter:description"
+            content="Transform your Docker infrastructure from static YAML to dynamic, visual architecture. Real-time diagrams, collision detection, and a premium visual IDE."
+        />
+        <meta
+            property="twitter:image"
+            content="https://www.compoviz.pro/og-image.png"
+        />
 
-  <!-- Twitter -->
-  <meta property="twitter:card" content="summary_large_image" />
-  <meta property="twitter:url" content="https://www.compoviz.pro/" />
-  <meta property="twitter:title" content="Compoviz | Visual Docker Compose Architect" />
-  <meta property="twitter:description"
-    content="Transform your Docker infrastructure from static YAML to dynamic, visual architecture. Real-time diagrams, collision detection, and a premium visual IDE." />
-  <meta property="twitter:image" content="https://www.compoviz.pro/og-image.png" />
+        <!-- Fonts: Satoshi (body) + Instrument Serif (display) + Commit Mono (code) -->
+        <link
+            rel="preconnect"
+            href="https://fonts.googleapis.com"
+        />
+        <link
+            rel="preconnect"
+            href="https://fonts.gstatic.com"
+            crossorigin
+        />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap"
+            rel="stylesheet"
+        />
+        <link
+            href="https://api.fontshare.com/v2/css?f[]=satoshi@400;500;600;700&f[]=commit-mono@400;700&display=swap"
+            rel="stylesheet"
+        />
+    </head>
 
-  <!-- Fonts: Satoshi (body) + Instrument Serif (display) + Commit Mono (code) -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
-  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400;500;600;700&f[]=commit-mono@400;700&display=swap" rel="stylesheet">
-</head>
+    <body>
+        <div id="root"></div>
+        <script
+            type="module"
+            src="/src/main.tsx"
+        ></script>
 
-<body>
-  <div id="root"></div>
-  <script type="module" src="/src/main.jsx"></script>
-
-  <!-- Ko-fi Donation Widget -->
-  <script src='https://storage.ko-fi.com/cdn/scripts/overlay-widget.js'></script>
-  <script>
-    kofiWidgetOverlay.draw('compoviz', {
-      'type': 'floating-chat',
-      'floating-chat.donateButton.text': 'Donate',
-      'floating-chat.donateButton.background-color': '#ffffff',
-      'floating-chat.donateButton.text-color': '#323842'
-    });
-  </script>
-</body>
-
+        <!-- Ko-fi Donation Widget -->
+        <script src="https://storage.ko-fi.com/cdn/scripts/overlay-widget.js"></script>
+        <script>
+            kofiWidgetOverlay.draw("compoviz", {
+                type: "floating-chat",
+                "floating-chat.donateButton.text": "Donate",
+                "floating-chat.donateButton.background-color": "#ffffff",
+                "floating-chat.donateButton.text-color": "#323842",
+            });
+        </script>
+    </body>
 </html>

@@ -9,8 +9,19 @@ lerna-debug.log*
 
 node_modules
 dist
+coverage
+.tsbuildinfo
+.yarn-install-state.gz
 dist-ssr
 *.local
+.git
+.github
+.agents
+.codex
+.opencode
+.serena
+docs
+openspec
 
 # Editor directories and files
 .vscode/*

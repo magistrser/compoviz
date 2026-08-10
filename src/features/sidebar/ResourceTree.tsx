@@ -1,0 +1,94 @@
+import { Server, Network, Database, Key, FileText, Plus, Trash2 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { Badge, IconButton } from "../../components/ui";
+import { useCompose } from "../../hooks/useCompose";
+import { useUI } from "../../context/UIContext";
+import type { ResourceSelection, ResourceType } from "../../context/UIContext";
+
+/**
+ * Resource tree navigation component for sidebar
+ * Displays all compose resources in a hierarchical tree
+ */
+export const ResourceTree = ({
+    onSelect,
+    onAdd,
+    onDelete,
+}: {
+    onSelect: (selection: ResourceSelection) => void;
+    onAdd: (type: ResourceType) => void;
+    onDelete: (type: ResourceType, name: string) => void;
+}) => {
+    // Get compose state from context
+    const { state, errors } = useCompose();
+    // Get UI state from context
+    const { selected, searchTerm } = useUI();
+
+    const categories: Array<{ key: ResourceType; label: string; icon: LucideIcon; color: string }> = [
+        { key: "services", label: "Services", icon: Server, color: "text-accent" },
+        { key: "networks", label: "Networks", icon: Network, color: "text-success" },
+        { key: "volumes", label: "Volumes", icon: Database, color: "text-warning" },
+        { key: "secrets", label: "Secrets", icon: Key, color: "text-secret" },
+        { key: "configs", label: "Configs", icon: FileText, color: "text-config" },
+    ];
+
+    const getErrors = (type: ResourceType, name: string) =>
+        errors.filter((e) => e.entity === type.slice(0, -1) && e.name === name);
+    const filter = (items: Record<string, unknown>) =>
+        searchTerm
+            ? Object.keys(items).filter((k) => k.toLowerCase().includes(searchTerm.toLowerCase()))
+            : Object.keys(items);
+
+    return (
+        <div className="space-y-2">
+            {categories.map(({ key, label, icon: Icon, color }) => (
+                <div key={key}>
+                    <div className="flex items-center justify-between px-3 py-2 text-sm font-medium text-text-secondary">
+                        <span className="flex items-center gap-2">
+                            <Icon
+                                size={14}
+                                className={color}
+                            />
+                            {label}
+                        </span>
+                        <button
+                            onClick={() => onAdd(key)}
+                            className="p-1 hover:bg-surface-raised rounded transition-colors"
+                        >
+                            <Plus size={14} />
+                        </button>
+                    </div>
+                    {filter(state[key]).map((name) => {
+                        const itemErrors = getErrors(key, name);
+                        return (
+                            <div
+                                key={name}
+                                className={`tree-item ml-2 ${selected?.type === key && selected?.name === name ? "active" : ""}`}
+                                onClick={() => onSelect({ type: key, name })}
+                            >
+                                <Icon
+                                    size={14}
+                                    className={color}
+                                />
+                                <span className="flex-1 truncate text-sm">{name}</span>
+                                {itemErrors.length > 0 && (
+                                    <Badge type={itemErrors[0]?.type ?? "warning"}>{itemErrors.length}</Badge>
+                                )}
+                                <IconButton
+                                    icon={Trash2}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onDelete(key, name);
+                                    }}
+                                    variant="danger"
+                                    size="sm"
+                                />
+                            </div>
+                        );
+                    })}
+                </div>
+            ))}
+        </div>
+    );
+};
+
+export default ResourceTree;

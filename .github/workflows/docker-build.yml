@@ -1,130 +1,139 @@
 name: Docker Image Build and Push
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    # Docker push will be skipped for PRs to main but still runs the CI and Build steps to verify the PR is valid
-    branches: [ main ]
-  # Use below to trigger on PRs, releases or manual triggers
-  # release: # Uncomment to trigger on releases for versioning
-  #   types: [ published ]
-  # workflow_dispatch:  #Uncomment to allow manual triggering
+    push:
+        branches: [main]
+    pull_request:
+        # Docker push will be skipped for PRs to main but still runs the CI and Build steps to verify the PR is valid
+        branches: [main]
+    # Use below to trigger on PRs, releases or manual triggers
+    # release: # Uncomment to trigger on releases for versioning
+    #   types: [ published ]
+    # workflow_dispatch:  #Uncomment to allow manual triggering
 
 env:
-  PLATFORMS: amd64,arm64
-  IMAGE_ARCHITECTURES: linux/amd64,linux/arm64
-  GHCR_REGISTRY: ghcr.io
-  GHCR_IMAGE_NAME: ${{ github.repository }}
-  # Find DOCKERADD comments in file for notes on adding Docker Hub Images 
-  #DOCKER_REGISTRY: docker.io #DOCKERADD: uncomment
-  #DOCKERHUB_IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }} #DOCKERADD: uncomment
+    PLATFORMS: amd64,arm64
+    IMAGE_ARCHITECTURES: linux/amd64,linux/arm64
+    GHCR_REGISTRY: ghcr.io
+    GHCR_IMAGE_NAME: ${{ github.repository }}
+    # Find DOCKERADD comments in file for notes on adding Docker Hub Images
+    #DOCKER_REGISTRY: docker.io #DOCKERADD: uncomment
+    #DOCKERHUB_IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }} #DOCKERADD: uncomment
 
 jobs:
-  wait-for-ci:
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read # allow job to read actions
-    steps:
-      - name: Wait for ci.yml to pass
-        uses: lewagon/wait-on-check-action@v1.4.1
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          check-name: 'lint-and-test' # Name of the job in ci.yml (must be renamed if changed in ci.yml)
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          wait-interval: 10  # seconds between checks
-          # Default: allowed conclusions are success and skipped but can be configured below - for example:
-          #allowed-conclusions: success,skipped,cancelled
-  
-  build-and-push:
-    needs: wait-for-ci
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read # allow job to read repo
-      packages: write # allow job to publish/write packages (docker images)
-      id-token: write # allow job to request idc token for secure auth
-      attestations: write # allow job to create attestations
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6 # v6 for node 24 support and secure git credential storage
-      
-      - name: Extract version from package.json
-        id: package-version
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "📦 Using Package version: $VERSION"
+    wait-for-ci:
+        runs-on: ubuntu-latest
+        permissions:
+            actions: read # allow job to read actions
+        steps:
+            - name: Wait for ci.yml to pass
+              uses: lewagon/wait-on-check-action@v1.4.1
+              with:
+                  ref: ${{ github.event.pull_request.head.sha || github.sha }}
+                  check-name: "lint-and-test" # Name of the job in ci.yml (must be renamed if changed in ci.yml)
+                  repo-token: ${{ secrets.GITHUB_TOKEN }}
+                  wait-interval: 10 # seconds between checks
+                  # Default: allowed conclusions are success and skipped but can be configured below - for example:
+                  #allowed-conclusions: success,skipped,cancelled
 
-      # Support multiple architectures for docker images
-      - name: Setup QEMU platforms
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: ${{ env.PLATFORMS }}
+    build-and-push:
+        needs: wait-for-ci
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read # allow job to read repo
+            packages: write # allow job to publish/write packages (docker images)
+            id-token: write # allow job to request idc token for secure auth
+            attestations: write # allow job to create attestations
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v6 # v6 for node 24 support and secure git credential storage
 
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      
-      - name: Login to Github Container Registry GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.GHCR_REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+            - name: Set up Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version-file: ".nvmrc"
+                  cache: "yarn"
 
-      # DOCKERADD: Uncomment lines below to also push to Docker Hub
-      # - name: Log in to Docker Hub
-      #   uses: docker/login-action@v3
-      #   with:
-      #     username: ${{ secrets.DOCKERHUB_USERNAME }}
-      #     password: ${{ secrets.DOCKERHUB_TOKEN }}
+            - name: Enable Corepack
+              run: corepack enable
 
-      - name: Extract metadata tags and labels for Docker
-        id: docker-meta-data
-        uses: docker/metadata-action@v5
-        with:
-          # DOCKERADD (include this to images below GHCR):  ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKERHUB_IMAGE_NAME }}
-          images: |
-            ${{ env.GHCR_REGISTRY }}/${{ env.GHCR_IMAGE_NAME }}
-          # Add version, latest, branch, pr, semantic versioning and sha image tags as needed
-          tags: |
-            type=raw,value=${{ steps.package-version.outputs.version }}
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            - name: Extract version from package.json
+              id: package-version
+              run: |
+                  VERSION=$(yarn node -p "require('./package.json').version")
+                  echo "version=$VERSION" >> $GITHUB_OUTPUT
+                  echo "📦 Using Package version: $VERSION"
 
-      - name: Build and push Docker images
-        id: build-and-push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile
-          platforms: ${{ env.IMAGE_ARCHITECTURES }}
-          push: ${{ github.event_name != 'pull_request' }}  # Only builds prs for testing but publish images for pushes
-          tags: ${{ steps.docker-meta-data.outputs.tags }}
-          labels: ${{ steps.docker-meta-data.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          provenance: true
-          sbom: true
+            # Support multiple architectures for docker images
+            - name: Setup QEMU platforms
+              uses: docker/setup-qemu-action@v3
+              with:
+                  platforms: ${{ env.PLATFORMS }}
 
-      - name: Generate artifact attestation
-        if: github.event_name != 'pull_request'
-        uses: actions/attest-build-provenance@v1
-        with:
-          # DOCKERADD (include this subject-name below GHCR): ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKERHUB_IMAGE_NAME }}
-          subject-name: | 
-            ${{ env.GHCR_REGISTRY }}/${{ env.GHCR_IMAGE_NAME }}
-          subject-digest: ${{ steps.build-and-push.outputs.digest }}
-          push-to-registry: true
+            - name: Setup Docker Buildx
+              uses: docker/setup-buildx-action@v3
 
-      - name: Output image tags
-        run: |
-          echo "### Docker Images Built 🐳" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Platforms:** ${{ env.IMAGE_ARCHITECTURES }}" >> $GITHUB_STEP_SUMMARY
-          echo "">> $GITHUB_STEP_SUMMARY
-          echo "**Image Tags:**" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.docker-meta-data.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+            - name: Login to Github Container Registry GHCR
+              uses: docker/login-action@v3
+              with:
+                  registry: ${{ env.GHCR_REGISTRY }}
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
+
+            # DOCKERADD: Uncomment lines below to also push to Docker Hub
+            # - name: Log in to Docker Hub
+            #   uses: docker/login-action@v3
+            #   with:
+            #     username: ${{ secrets.DOCKERHUB_USERNAME }}
+            #     password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+            - name: Extract metadata tags and labels for Docker
+              id: docker-meta-data
+              uses: docker/metadata-action@v5
+              with:
+                  # DOCKERADD (include this to images below GHCR):  ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKERHUB_IMAGE_NAME }}
+                  images: |
+                      ${{ env.GHCR_REGISTRY }}/${{ env.GHCR_IMAGE_NAME }}
+                  # Add version, latest, branch, pr, semantic versioning and sha image tags as needed
+                  tags: |
+                      type=raw,value=${{ steps.package-version.outputs.version }}
+                      type=raw,value=latest,enable={{is_default_branch}}
+                      type=ref,event=branch
+                      type=semver,pattern={{version}}
+                      type=semver,pattern={{major}}.{{minor}}
+
+            - name: Build and push Docker images
+              id: build-and-push
+              uses: docker/build-push-action@v6
+              with:
+                  context: .
+                  file: ./Dockerfile
+                  platforms: ${{ env.IMAGE_ARCHITECTURES }}
+                  push: ${{ github.event_name != 'pull_request' }} # Only builds prs for testing but publish images for pushes
+                  tags: ${{ steps.docker-meta-data.outputs.tags }}
+                  labels: ${{ steps.docker-meta-data.outputs.labels }}
+                  cache-from: type=gha
+                  cache-to: type=gha,mode=max
+                  provenance: true
+                  sbom: true
+
+            - name: Generate artifact attestation
+              if: github.event_name != 'pull_request'
+              uses: actions/attest-build-provenance@v1
+              with:
+                  # DOCKERADD (include this subject-name below GHCR): ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKERHUB_IMAGE_NAME }}
+                  subject-name: |
+                      ${{ env.GHCR_REGISTRY }}/${{ env.GHCR_IMAGE_NAME }}
+                  subject-digest: ${{ steps.build-and-push.outputs.digest }}
+                  push-to-registry: true
+
+            - name: Output image tags
+              run: |
+                  echo "### Docker Images Built 🐳" >> $GITHUB_STEP_SUMMARY
+                  echo "" >> $GITHUB_STEP_SUMMARY
+                  echo "**Platforms:** ${{ env.IMAGE_ARCHITECTURES }}" >> $GITHUB_STEP_SUMMARY
+                  echo "">> $GITHUB_STEP_SUMMARY
+                  echo "**Image Tags:**" >> $GITHUB_STEP_SUMMARY
+                  echo '```' >> $GITHUB_STEP_SUMMARY
+                  echo "${{ steps.docker-meta-data.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+                  echo '```' >> $GITHUB_STEP_SUMMARY

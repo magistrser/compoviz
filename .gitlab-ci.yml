@@ -1,0 +1,46 @@
+image: node:22.12.0-alpine
+
+stages:
+  - quality
+  - build
+
+default:
+  before_script:
+    - corepack enable
+    - yarn install --immutable
+  cache:
+    key:
+      files:
+        - yarn.lock
+    paths:
+      - .yarn-install-state.gz
+      - node_modules/.cache/
+
+lint:
+  stage: quality
+  script:
+    - yarn lint
+
+format:
+  stage: quality
+  script:
+    - yarn format:check
+
+typecheck:
+  stage: quality
+  script:
+    - yarn typecheck
+
+test:
+  stage: quality
+  script:
+    - yarn test
+
+build:
+  stage: build
+  script:
+    - yarn build
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1 week

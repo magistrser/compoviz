@@ -6,8 +6,8 @@ Thanks for your interest in contributing to Compoviz! 🎉
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (v18 or higher)
-- [npm](https://www.npmjs.com/)
+- [Node.js](https://nodejs.org/) 22.12.0 or newer
+- Corepack with the repository-pinned Yarn 4 release
 
 ### Local Development
 
@@ -22,7 +22,8 @@ Thanks for your interest in contributing to Compoviz! 🎉
 3. Install dependencies:
 
    ```bash
-   npm install
+   corepack enable
+   yarn install --immutable
    ```
 
 4. Start the development server:
@@ -33,10 +34,10 @@ Thanks for your interest in contributing to Compoviz! 🎉
    ```
 
    ```bash
-   npm run dev
+   yarn dev
    ```
 
-5. Open your browser and navigate to `http://localhost:5173`
+5. Open your browser and navigate to `http://localhost:3000`
 
 ### Testing
 
@@ -44,37 +45,40 @@ Run the test suite locally to ensure everything is working:
 
 ```bash
 # Run all tests once
-npm test
+yarn test
 
 # Run tests in watch mode
-npm run test:watch
+yarn test:watch
 
 # Open Vitest UI for a better experience
-npm run test:ui
+yarn test:ui
 ```
 
 ### Scripts for Development & Testing
 
-Below is a guide for local development, from cloning the repository to running and cleaning up Docker development environments. Each step is mapped to the corresponding command or npm script.
+Below is a guide for local development, from cloning the repository to running and cleaning up Docker development environments. Each step is mapped to the corresponding Yarn script.
 
 | Use Case                                | Command to Run                                                      | What It Does / Underlying Command                             |
 | --------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------- |
 | Clone & cd into repository              | `git clone https://github.com/adavesik/compoviz.git && cd compoviz` | Clones the Compoviz repository and changes into the directory |
-| Install dependencies                    | `npm install`                                                       | Installs all npm dependencies                                 |
-| Start Vite dev server (hot reload)      | `npm run dev`                                                       | `vite`                                                        |
-| Build production bundle                 | `npm run build`                                                     | `vite build`                                                  |
-| Lint codebase                           | `npm run lint`                                                      | `eslint .`                                                    |
-| Run all tests (CI mode)                 | `npm run test`                                                      | `vitest run`                                                  |
-| Run tests in watch mode                 | `npm run test:watch`                                                | `vitest`                                                      |
-| Run interactive test UI                 | `npm run test:ui`                                                   | `vitest --ui`                                                 |
-| Preview production build                | `npm run preview`                                                   | `vite preview`                                                |
-| Build & Start container (with logging)  | `npm run docker:dev`                                                | `docker compose up`                                           |
-| Build & Start container (detached)      | `npm run docker:dev -- -d`                                          | `docker compose up -d`                                        |
-| Restart running container               | `npm run docker:restart`                                            | `docker compose restart`                                      |
-| Rebuild image and start container       | `npm run docker:rebuild`                                            | `npm run docker:dev -- --build`                               |
-| Stop and remove containers              | `npm run docker:down`                                               | `docker compose down`                                         |
-| Remove locally built image              | `npm run docker:image-rm`                                           | `docker image rm compoviz-dev:latest`                         |
-| All-in-one stop & remove image          | `npm run docker:clean`                                              | `docker compose down --rmi local --volumes`                   |
+| Install dependencies                    | `yarn install --immutable`                                          | Installs the locked Yarn dependency graph                     |
+| Start Vite dev server (hot reload)      | `yarn dev`                                                          | `vite` on port 3000                                           |
+| Build production bundle                 | `yarn build`                                                        | `tsc -b && vite build`                                        |
+| Lint codebase                           | `yarn lint`                                                         | ESLint for TypeScript and TSX                                 |
+| Typecheck codebase                      | `yarn typecheck`                                                    | Strict TypeScript without emitting files                      |
+| Check formatting                        | `yarn format:check`                                                 | Prettier verification                                         |
+| Run all quality checks                  | `yarn check`                                                        | Lint, typecheck, formatting, and tests                        |
+| Run all tests (CI mode)                 | `yarn test`                                                         | `vitest run`                                                  |
+| Run tests in watch mode                 | `yarn test:watch`                                                   | `vitest`                                                      |
+| Run interactive test UI                 | `yarn test:ui`                                                      | `vitest --ui`                                                 |
+| Preview production build                | `yarn preview`                                                      | `vite preview` on port 4173                                   |
+| Build & Start container (with logging)  | `yarn docker:dev`                                                   | `docker compose up`                                           |
+| Build & Start container (detached)      | `yarn docker:dev -- -d`                                             | `docker compose up -d`                                        |
+| Restart running container               | `yarn docker:restart`                                               | `docker compose restart`                                      |
+| Rebuild image and start container       | `yarn docker:rebuild`                                               | `yarn docker:dev --build`                                     |
+| Stop and remove containers              | `yarn docker:down`                                                  | `docker compose down`                                         |
+| Remove locally built image              | `yarn docker:image-rm`                                              | `docker image rm compoviz-dev:latest`                         |
+| All-in-one stop & remove image          | `yarn docker:clean`                                                 | `docker compose down --rmi local --volumes`                   |
 | Run docker compose with pre-built image | `docker compose -f compose/docker-compose.yml up -d`                | Runs docker compose using the pre-built image                 |
 
 ## How to Contribute
@@ -109,10 +113,15 @@ Below is a guide for local development, from cloning the repository to running a
 
 ```
 src/
-├── components/     # React components
+├── app/            # BrowserRouter, provider stack, and route constants
+├── pages/          # Lazy route entry points
+├── components/     # Shared React components
+├── features/       # Feature-local editor, diagram, and sidebar modules
 ├── hooks/          # Custom React hooks
-├── utils/          # Utility functions
-└── styles/         # CSS files
+├── models/         # Compose contracts and canonical AST
+├── utils/          # Parsing, rendering, and support utilities
+├── workers/        # Typed parser worker entry point
+└── styles/         # Global SCSS
 ```
 
 ## Questions?

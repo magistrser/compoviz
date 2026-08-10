@@ -28,7 +28,7 @@
   <a href="https://github.com/adavesik/compoviz/issues">
     <img src="https://img.shields.io/github/issues/adavesik/compoviz" alt="GitHub Issues" />
   </a>
-  <img src="https://img.shields.io/badge/tests-200%2B%20passing-brightgreen" alt="Tests" />
+  <img src="https://img.shields.io/badge/tests-450%2B%20passing-brightgreen" alt="Tests" />
   <img src="https://img.shields.io/badge/Docker%20Compose-Spec%20V3%2B-2496ED?logo=docker" alt="Compose Spec" />
 </p>
 
@@ -47,9 +47,10 @@
 Compoviz is the **only** Docker Compose tool that combines a **production-grade, spec-compliant parser** with **real-time visual architecture mapping**. Built for DevOps engineers who need to understand, debug, and architect complex multi-service applications.
 
 ### ⚡ Performance That Scales
+
 - **50 services parsed in ~25ms** with Web Worker architecture
 - **Non-blocking UI** - parse large compose files without freezing
-- **200+ test cases** ensuring reliability with real-world fixtures
+- **450+ test cases** ensuring reliability with real-world fixtures
 
 ---
 
@@ -60,7 +61,7 @@ Compoviz is the **only** Docker Compose tool that combines a **production-grade,
 Built from the ground up to support the full [Docker Compose Specification v3+](https://compose-spec.io/):
 
 - ✅ **Multi-file Includes** - `include` directive with circular dependency detection
-- ✅ **Service Inheritance** - `extends` with spec-compliant merge strategies  
+- ✅ **Service Inheritance** - `extends` with spec-compliant merge strategies
 - ✅ **Advanced Variable Interpolation** - Full support for `${VAR:-default}`, `${VAR:?required}`, `${VAR?error}` syntax
 - ✅ **Profile Support** - Filter services by profiles with visual profile selector
 - ✅ **Environment Files** - `.env` file parsing and merging
@@ -77,7 +78,7 @@ Transform YAML into professional architecture diagrams instantly:
 - **Smart Dependency Visualization** - `depends_on` conditions (`healthy`, `started`, `completed`) shown as labeled edges
 - **Infrastructure Mapping** - Host path mounts, named volumes, secrets, and configs visualized at a glance
 - **Port Exposure** - Published ports clearly displayed with protocol indicators
-- **Enhanced Mermaid.js** - Production-ready diagrams with customizable styling
+- **Graphviz rendering** - Production-ready diagrams with customizable styling
 
 ### 🔍 **Multi-Project Comparison**
 
@@ -131,7 +132,7 @@ This major update introduces a production-grade Docker Compose parser that rival
 - 🎯 **Profile Filtering** - Visual profile selector with service count indicators
 - ⚡ **Web Worker Parsing** - Async architecture prevents UI blocking
 - 📁 **Directory Upload** - Upload entire compose projects with `.env` files
-- 🧪 **200+ Tests** - Comprehensive test suite with real-world fixtures
+- 🧪 **450+ Tests** - Comprehensive test suite with real-world fixtures
 
 **Performance**: 50 services parsed in ~25ms | 100% passing tests | Zero linting errors
 
@@ -152,12 +153,14 @@ The easiest way to self-host Compoviz. No Node.js required!
 #### Using Pre-built Image (Recommended)
 
 **Docker Run:**
+
 ```bash
 docker run -d -p 8080:80 ghcr.io/adavesik/compoviz:latest
 # Access at http://localhost:8080
 ```
 
 **Docker Compose:**
+
 ```bash
 # Create project directory
 mkdir compoviz && cd compoviz
@@ -174,16 +177,19 @@ docker compose up -d
 #### Build from Source
 
 **Prerequisites:**
+
 ```bash
 git clone https://github.com/adavesik/compoviz.git && cd compoviz
 ```
 
 **Docker Compose:**
+
 ```bash
 docker compose up -d
 ```
 
 **Docker CLI:**
+
 ```bash
 docker build -t compoviz-dev .
 docker run -d -p 8080:80 --name compoviz-dev compoviz-dev
@@ -192,58 +198,68 @@ docker run -d -p 8080:80 --name compoviz-dev compoviz-dev
 ### 💻 Local Development
 
 **Prerequisites:**
-- [Node.js](https://nodejs.org/) v18 or higher
-- [npm](https://www.npmjs.com/)
+
+- [Node.js](https://nodejs.org/) 22.12.0 or newer (`.nvmrc` is provided)
+- [Corepack](https://nodejs.org/api/corepack.html) with the repository-pinned Yarn 4 release
 
 **Setup:**
+
 ```bash
 git clone https://github.com/adavesik/compoviz.git
 cd compoviz
-npm install
-npm run dev
+corepack enable
+yarn install --immutable
+yarn dev
 ```
 
 **Optional** - Disable Vercel Analytics:
+
 ```bash
 cp .env.example .env
 ```
 
-Access at `http://localhost:5173`
+Access at `http://localhost:3000`
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Layer | Technology | Purpose |
-|-------|-----------|---------|
-| **Frontend** | React 18 + Vite | Modern UI with fast HMR |
-| **Styling** | Tailwind CSS | Custom dark theme with design system |
-| **Diagrams** | Mermaid.js | Enhanced architecture visualization |
-| **Visual Editor** | React Flow | Drag-and-drop node-based editor |
-| **Parsing** | Custom Parser + js-yaml | Spec-compliant Docker Compose parsing |
-| **State Management** | React Context + Custom Hooks | `useCompose`, `useMultiProject`, `useHistory` |
-| **Worker Threads** | Web Workers | Non-blocking async parsing |
-| **Testing** | Vitest | 200+ tests with real-world fixtures |
+| Layer                | Technology                     | Purpose                                       |
+| -------------------- | ------------------------------ | --------------------------------------------- |
+| **Frontend**         | React 19 + TypeScript + Vite 8 | Strictly typed UI with fast HMR               |
+| **Styling**          | SCSS                           | Custom dark theme with design system          |
+| **Routing**          | React Router 7                 | Template-derived browser application shell    |
+| **Diagrams**         | Graphviz                       | Enhanced architecture visualization           |
+| **Visual Editor**    | React Flow                     | Drag-and-drop node-based editor               |
+| **Parsing**          | Custom Parser + js-yaml        | Spec-compliant Docker Compose parsing         |
+| **State Management** | React Context + Custom Hooks   | `useCompose`, `useMultiProject`, `useHistory` |
+| **Worker Threads**   | Web Workers                    | Non-blocking async parsing                    |
+| **Testing**          | Vitest                         | 450+ tests with real-world fixtures           |
 
 ---
 
 ## 📚 Development Scripts
 
-| Command | Description | Underlying Command |
-|---------|-------------|-------------------|
-| `npm run dev` | Start Vite dev server (hot reload) | `vite` |
-| `npm run build` | Build production bundle | `vite build` |
-| `npm run preview` | Preview production build | `vite preview` |
-| `npm run lint` | Lint codebase | `eslint .` |
-| `npm test` | Run all tests (CI mode) | `vitest run` |
-| `npm run test:watch` | Run tests in watch mode | `vitest` |
-| `npm run test:ui` | Run interactive test UI | `vitest --ui` |
-| `npm run docker:dev` | Build & start container | `docker compose up` |
-| `npm run docker:dev -- -d` | Build & start (detached) | `docker compose up -d` |
-| `npm run docker:restart` | Restart running container | `docker compose restart` |
-| `npm run docker:rebuild` | Rebuild image and start | `docker compose up --build` |
-| `npm run docker:down` | Stop and remove containers | `docker compose down` |
-| `npm run docker:clean` | Full cleanup (containers + images) | `docker compose down --rmi local --volumes` |
+| Command                 | Description                                  | Underlying Command                          |
+| ----------------------- | -------------------------------------------- | ------------------------------------------- |
+| `yarn dev`              | Start Vite dev server on port 3000           | `vite`                                      |
+| `yarn build`            | Typecheck and build the production bundle    | `tsc -b && vite build`                      |
+| `yarn preview`          | Preview the production build on port 4173    | `vite preview`                              |
+| `yarn lint`             | Lint TypeScript and TSX                      | `eslint`                                    |
+| `yarn typecheck`        | Run strict TypeScript checks                 | `tsc --noEmit`                              |
+| `yarn format:check`     | Check Prettier formatting                    | `prettier --check`                          |
+| `yarn test`             | Run all tests (CI mode)                      | `vitest run`                                |
+| `yarn test:watch`       | Run tests in watch mode                      | `vitest`                                    |
+| `yarn test:ui`          | Run the interactive test UI                  | `vitest --ui`                               |
+| `yarn check`            | Run lint, typecheck, format check, and tests | package quality gate                        |
+| `yarn docker:dev`       | Build and start the container                | `docker compose up`                         |
+| `yarn docker:dev -- -d` | Build and start detached                     | `docker compose up -d`                      |
+| `yarn docker:restart`   | Restart the running container                | `docker compose restart`                    |
+| `yarn docker:rebuild`   | Rebuild the image and start                  | `docker compose up --build`                 |
+| `yarn docker:down`      | Stop and remove containers                   | `docker compose down`                       |
+| `yarn docker:clean`     | Remove containers, images, and volumes       | `docker compose down --rmi local --volumes` |
+
+GitLab CI and GitHub Actions both enable Corepack, install the locked graph with `yarn install --immutable`, and run lint, formatting, strict type checks, tests, and the production build. The Docker-image workflow reuses the same pinned Node/Yarn foundation before publishing the existing GHCR image.
 
 ---
 
@@ -269,23 +285,24 @@ YAML Input → Parse → Includes → Extends → Variables → Profiles → Out
 - **VariableInterpolator** - Advanced `${VAR}` syntax support
 - **ProfileFilter** - Profile-based service filtering
 - **WorkerManager** - Web Worker lifecycle management
-- **GraphvizRenderer** - Mermaid.js diagram generation
+- **GraphvizRenderer** - Worker-backed Graphviz diagram generation
 
 ---
 
 ## 🧪 Testing & Quality
 
-- **200+ test cases** covering all parser stages
+- **450+ test cases** covering parser, UI, integration, and property behavior
 - **Integration tests** with real-world Docker Compose fixtures
 - **Performance benchmarks** - 50 services in ~25ms
 - **Zero linting errors** - ESLint strict mode
 - **100% passing tests** - Continuous validation
 
 **Run tests:**
+
 ```bash
-npm test              # Run all tests
-npm run test:watch    # Watch mode
-npm run test:ui       # Interactive UI
+yarn test              # Run all tests
+yarn test:watch        # Watch mode
+yarn test:ui           # Interactive UI
 ```
 
 ---
@@ -299,7 +316,7 @@ We welcome contributions! Whether it's bug reports, feature requests, or code co
 1. **Fork the Project** on GitHub
 2. **Create a Feature Branch**: `git checkout -b feature/AmazingFeature`
 3. **Make Your Changes**: Follow existing code style and add tests
-4. **Run Tests**: `npm test` and `npm run lint`
+4. **Run Checks**: `yarn check` and `yarn build`
 5. **Commit Changes**: `git commit -m 'feat: add AmazingFeature'` (follow [Conventional Commits](https://www.conventionalcommits.org/))
 6. **Push to Branch**: `git push origin feature/AmazingFeature`
 7. **Open a Pull Request** with clear description
