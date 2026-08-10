@@ -11,7 +11,7 @@ export default function Footer() {
                 </div>
                 <div className="footer-actions">
                     <a
-                        href="https://github.com/adavesik/compoviz"
+                        href="https://github.com/magistrser/compoviz"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="footer-btn footer-btn-primary"
@@ -20,13 +20,13 @@ export default function Footer() {
                         <Github size={16} />
                         <span>Star on GitHub</span>
                         <img
-                            src="https://img.shields.io/github/stars/adavesik/compoviz?style=social"
+                            src="https://img.shields.io/github/stars/magistrser/compoviz?style=social"
                             alt="GitHub stars"
                             className="github-badge"
                         />
                     </a>
                     <a
-                        href="https://github.com/adavesik/compoviz/issues"
+                        href="https://github.com/magistrser/compoviz/issues"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="footer-btn footer-btn-secondary"

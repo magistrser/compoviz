@@ -28,6 +28,24 @@ describe("MainLayout Component", () => {
         expect(screen.getByAltText(/logo/i)).toBeInTheDocument();
     });
 
+    it("uses the canonical repository for GitHub actions", () => {
+        render(<MainLayout />);
+
+        expect(screen.getByLabelText("View on GitHub")).toHaveAttribute(
+            "href",
+            "https://github.com/magistrser/compoviz",
+        );
+        expect(screen.getByTitle("Star on GitHub")).toHaveAttribute("href", "https://github.com/magistrser/compoviz");
+        expect(screen.getByTitle("Report an issue or request a feature")).toHaveAttribute(
+            "href",
+            "https://github.com/magistrser/compoviz/issues",
+        );
+        expect(screen.getByAltText("GitHub stars")).toHaveAttribute(
+            "src",
+            "https://img.shields.io/github/stars/magistrser/compoviz?style=social",
+        );
+    });
+
     it("shows view switcher buttons", () => {
         render(<MainLayout />);
 

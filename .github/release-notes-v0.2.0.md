@@ -51,8 +51,8 @@
 
 ### 📝 Full Changelog
 
-See [CHANGELOG.md](https://github.com/adavesik/compoviz/blob/main/CHANGELOG.md) for detailed changes.
+See [CHANGELOG.md](https://github.com/magistrser/compoviz/blob/main/CHANGELOG.md) for detailed changes.
 
 ---
 
-**Full Diff**: [v0.1.0...v0.2.0](https://github.com/adavesik/compoviz/compare/ac84f4b...v0.2.0)
+**Full Diff**: [v0.1.0...v0.2.0](https://github.com/magistrser/compoviz/compare/ac84f4b...v0.2.0)

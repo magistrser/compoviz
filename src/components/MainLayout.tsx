@@ -290,7 +290,7 @@ export default function MainLayout() {
                             </p>
                         </div>
                         <a
-                            href="https://github.com/adavesik/compoviz"
+                            href="https://github.com/magistrser/compoviz"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="ml-2 p-1.5 hover:bg-surface-raised rounded-lg transition-colors opacity-60 hover:opacity-100 hidden sm:flex"

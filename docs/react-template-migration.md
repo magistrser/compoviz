@@ -39,7 +39,7 @@ The sole pre-existing failure is the timing assertion in `src/utils/objectUtils.
 - `VITE_DISABLE_VERCEL_ANALYTICS` controls analytics rendering and remains supported for self-hosting.
 - Awesome Compose catalog: `https://api.github.com/repos/docker/awesome-compose/contents`.
 - Awesome Compose content and Dockerfiles: `https://raw.githubusercontent.com/docker/awesome-compose/master`.
-- Page metadata/fonts and the existing optional Ko-fi widget are external static requests; the rewrite must not introduce an application backend.
+- Page metadata and fonts are external static requests; the rewrite must not introduce an application backend.
 
 ### Worker entry points and protocols
 
@@ -54,7 +54,7 @@ Both worker URLs use `new URL(..., import.meta.url)` and must continue to produc
 - Rendered diagram download: `docker-compose-diagram.svg`.
 - Builder download: `docker-compose-builder.svg`.
 - Service icons remain under `src/assets/icons/services/*.svg`; general static content remains under `public/`.
-- Docker image identity remains `ghcr.io/adavesik/compoviz`; production listens on port `80`, with the documented Compose mapping `8080:80`.
+- Docker image identity remains `ghcr.io/magistrser/compoviz`; production listens on port `80`, with the documented Compose mapping `8080:80`.
 
 ## Visual baseline
 

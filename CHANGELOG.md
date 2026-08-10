@@ -53,5 +53,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Template system for common services
 - localStorage persistence
 
-[0.2.0]: https://github.com/adavesik/compoviz/compare/ac84f4b...v0.2.0
-[0.1.0]: https://github.com/adavesik/compoviz/releases/tag/v0.1.0
+[0.2.0]: https://github.com/magistrser/compoviz/compare/ac84f4b...v0.2.0
+[0.1.0]: https://github.com/magistrser/compoviz/releases/tag/v0.1.0

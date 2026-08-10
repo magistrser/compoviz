@@ -3,7 +3,7 @@ name: compoviz
 
 services:
   compoviz:
-    image: ghcr.io/adavesik/compoviz:latest
+    image: ghcr.io/magistrser/compoviz:latest
     container_name: compoviz
     restart: unless-stopped
     ports:

@@ -60,7 +60,7 @@ Below is a guide for local development, from cloning the repository to running a
 
 | Use Case                                | Command to Run                                                      | What It Does / Underlying Command                             |
 | --------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------- |
-| Clone & cd into repository              | `git clone https://github.com/adavesik/compoviz.git && cd compoviz` | Clones the Compoviz repository and changes into the directory |
+| Clone & cd into repository              | `git clone https://github.com/magistrser/compoviz.git && cd compoviz` | Clones the Compoviz repository and changes into the directory |
 | Install dependencies                    | `yarn install --immutable`                                          | Installs the locked Yarn dependency graph                     |
 | Start Vite dev server (hot reload)      | `yarn dev`                                                          | `vite` on port 3000                                           |
 | Build production bundle                 | `yarn build`                                                        | `tsc -b && vite build`                                        |

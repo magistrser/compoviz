@@ -19,14 +19,14 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/adavesik/compoviz/blob/main/LICENSE">
+  <a href="https://github.com/magistrser/compoviz/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT" />
   </a>
-  <a href="https://github.com/adavesik/compoviz/stargazers">
-    <img src="https://img.shields.io/github/stars/adavesik/compoviz?style=flat&color=yellow" alt="GitHub Stars" />
+  <a href="https://github.com/magistrser/compoviz/stargazers">
+    <img src="https://img.shields.io/github/stars/magistrser/compoviz?style=flat&color=yellow" alt="GitHub Stars" />
   </a>
-  <a href="https://github.com/adavesik/compoviz/issues">
-    <img src="https://img.shields.io/github/issues/adavesik/compoviz" alt="GitHub Issues" />
+  <a href="https://github.com/magistrser/compoviz/issues">
+    <img src="https://img.shields.io/github/issues/magistrser/compoviz" alt="GitHub Issues" />
   </a>
   <img src="https://img.shields.io/badge/tests-450%2B%20passing-brightgreen" alt="Tests" />
   <img src="https://img.shields.io/badge/Docker%20Compose-Spec%20V3%2B-2496ED?logo=docker" alt="Compose Spec" />
@@ -155,7 +155,7 @@ The easiest way to self-host Compoviz. No Node.js required!
 **Docker Run:**
 
 ```bash
-docker run -d -p 8080:80 ghcr.io/adavesik/compoviz:latest
+docker run -d -p 8080:80 ghcr.io/magistrser/compoviz:latest
 # Access at http://localhost:8080
 ```
 
@@ -166,7 +166,7 @@ docker run -d -p 8080:80 ghcr.io/adavesik/compoviz:latest
 mkdir compoviz && cd compoviz
 
 # Download compose file
-wget https://raw.githubusercontent.com/adavesik/compoviz/refs/heads/main/compose/docker-compose.yml
+wget https://raw.githubusercontent.com/magistrser/compoviz/refs/heads/main/compose/docker-compose.yml
 
 # Deploy
 docker compose up -d
@@ -179,7 +179,7 @@ docker compose up -d
 **Prerequisites:**
 
 ```bash
-git clone https://github.com/adavesik/compoviz.git && cd compoviz
+git clone https://github.com/magistrser/compoviz.git && cd compoviz
 ```
 
 **Docker Compose:**
@@ -205,7 +205,7 @@ docker run -d -p 8080:80 --name compoviz-dev compoviz-dev
 **Setup:**
 
 ```bash
-git clone https://github.com/adavesik/compoviz.git
+git clone https://github.com/magistrser/compoviz.git
 cd compoviz
 corepack enable
 yarn install --immutable
@@ -349,8 +349,8 @@ Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more informa
 ## 🔗 Links
 
 - **Live Demo**: [compoviz.pro](https://compoviz.pro)
-- **GitHub**: [github.com/adavesik/compoviz](https://github.com/adavesik/compoviz)
-- **Issues**: [Report a bug or request a feature](https://github.com/adavesik/compoviz/issues)
+- **GitHub**: [github.com/magistrser/compoviz](https://github.com/magistrser/compoviz)
+- **Issues**: [Report a bug or request a feature](https://github.com/magistrser/compoviz/issues)
 - **Docker Compose Spec**: [compose-spec.io](https://compose-spec.io/)
 
 ---

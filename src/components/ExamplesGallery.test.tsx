@@ -218,6 +218,21 @@ describe("ExamplesGallery", () => {
         expect(screen.getByText(/visualization only/i)).toBeInTheDocument();
     });
 
+    it("retains the Docker awesome-compose source link", () => {
+        render(
+            <ExamplesGallery
+                open={true}
+                onClose={vi.fn()}
+                onSelect={vi.fn()}
+            />,
+        );
+
+        expect(screen.getByRole("link", { name: /awesome-compose/i })).toHaveAttribute(
+            "href",
+            "https://github.com/docker/awesome-compose",
+        );
+    });
+
     it("shows empty state for category with no examples", () => {
         render(
             <ExamplesGallery
