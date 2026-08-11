@@ -1,8 +1,11 @@
 import { describe, it, expect } from "vitest";
+import { normalizeToAST } from "../models/normalizeToAST";
 import { parseCompose } from "../utils/composeParser";
 import { generateGraphviz } from "../utils/graphviz";
 import { galleryExamples } from "./examplesGallery";
 import { requireCompose, requireValue } from "../test/typeHelpers";
+
+const graphvizFromRaw = (state: unknown) => generateGraphviz(normalizeToAST(state));
 
 /**
  * Integration tests: Verify gallery examples work end-to-end
@@ -33,7 +36,7 @@ describe("Examples Gallery Integration", () => {
                     enableProfiles: false,
                 });
 
-                const dot = generateGraphviz(result.compose);
+                const dot = graphvizFromRaw(result.compose);
                 expect(dot, `${example.id} produced empty DOT`).toBeTruthy();
                 expect(dot.length, `${example.id} DOT too short`).toBeGreaterThan(10);
                 expect(dot).toContain("digraph");

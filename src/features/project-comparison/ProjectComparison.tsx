@@ -1,8 +1,11 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type PropsWithChildren } from "react";
+import { normalizeToAST } from "../../models/normalizeToAST";
 import type { ComposeDocument, ComposeState } from "../../models/composeTypes";
 import { compareProjects, getComparisonSummary } from "../../utils/comparison";
+import { generateMultiProjectGraphviz } from "../../utils/graphviz";
 import { parseYaml } from "../../utils/yaml";
+import type { AdmittedComparisonProject } from "./internalTypes";
 import type {
     ComparisonProject,
     ComparisonSeverityCounts,
@@ -39,14 +42,20 @@ function summaryText(summary: ComparisonSeverityCounts): string {
         : `${parts.join(", ")} found across projects.`;
 }
 
-function createSnapshot(projects: readonly ComparisonProject[]): ProjectComparisonSnapshot {
-    const findings = projects.length >= 2 ? compareProjects([...projects]) : [];
+function createSnapshot(records: readonly AdmittedComparisonProject[]): ProjectComparisonSnapshot {
+    const projects = records.map((record) => record.project);
+    const findings = records.length >= 2 ? compareProjects(records) : [];
     const severityCounts = getComparisonSummary(findings);
+    const diagramDot = generateMultiProjectGraphviz(
+        records,
+        findings.filter((finding) => finding.severity === "error"),
+    );
     return {
         projects,
         findings,
         severityCounts,
         summary: summaryText(severityCounts),
+        diagramDot,
     };
 }
 
@@ -60,18 +69,18 @@ const ProjectComparisonContext = createContext<ProjectComparisonValue | null>(nu
 
 export function ProjectComparisonProvider({ children }: PropsWithChildren) {
     const [snapshot, setSnapshot] = useState<ProjectComparisonSnapshot>(EMPTY_SNAPSHOT);
-    const snapshotRef = useRef(snapshot);
+    const recordsRef = useRef<readonly AdmittedComparisonProject[]>([]);
     const nextIdRef = useRef(1);
 
-    const replaceProjects = useCallback((projects: readonly ComparisonProject[]) => {
-        const nextSnapshot = createSnapshot(projects);
-        snapshotRef.current = nextSnapshot;
+    const replaceProjects = useCallback((records: readonly AdmittedComparisonProject[]) => {
+        const nextSnapshot = createSnapshot(records);
+        recordsRef.current = records;
         setSnapshot(nextSnapshot);
     }, []);
 
     const admit = useCallback(
         ({ yaml, importedFilename }: ProjectAdmission): ProjectAdmissionOutcome => {
-            if (snapshotRef.current.projects.length >= MAX_PROJECTS) {
+            if (recordsRef.current.length >= MAX_PROJECTS) {
                 return { status: "rejected", reason: "capacity" };
             }
 
@@ -91,8 +100,12 @@ export function ProjectComparisonProvider({ children }: PropsWithChildren) {
                     name: composeName || importedName(importedFilename),
                     content: toProjectState(document),
                 };
+                const record: AdmittedComparisonProject = {
+                    project,
+                    ast: normalizeToAST(project.content),
+                };
                 nextIdRef.current += 1;
-                replaceProjects([...snapshotRef.current.projects, project]);
+                replaceProjects([...recordsRef.current, record]);
                 return { status: "accepted", project };
             } catch (error) {
                 return {
@@ -107,14 +120,14 @@ export function ProjectComparisonProvider({ children }: PropsWithChildren) {
 
     const remove = useCallback(
         (id: string) => {
-            const projects = snapshotRef.current.projects.filter((project) => project.id !== id);
-            if (projects.length !== snapshotRef.current.projects.length) replaceProjects(projects);
+            const records = recordsRef.current.filter((record) => record.project.id !== id);
+            if (records.length !== recordsRef.current.length) replaceProjects(records);
         },
         [replaceProjects],
     );
 
     const clear = useCallback(() => {
-        if (snapshotRef.current.projects.length > 0) replaceProjects([]);
+        if (recordsRef.current.length > 0) replaceProjects([]);
     }, [replaceProjects]);
 
     const value = useMemo<ProjectComparisonValue>(

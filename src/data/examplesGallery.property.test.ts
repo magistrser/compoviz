@@ -1,8 +1,11 @@
 import { describe, it, expect } from "vitest";
+import { normalizeToAST } from "../models/normalizeToAST";
 import { parseCompose } from "../utils/composeParser";
 import { generateGraphviz } from "../utils/graphviz";
 import { galleryExamples, filterExamples, CATEGORIES } from "./examplesGallery";
 import { requireValue } from "../test/typeHelpers";
+
+const graphvizFromRaw = (state: unknown) => generateGraphviz(normalizeToAST(state));
 
 /**
  * Property-based tests for the Examples Gallery.
@@ -28,7 +31,7 @@ describe("Examples Gallery - Correctness Properties", () => {
 
     /**
      * Property 2: Every example generates non-empty graphviz DOT
-     * ∀ entry ∈ galleryExamples: generateGraphviz(parseCompose(entry.yaml).compose).length > 0
+     * ∀ entry ∈ galleryExamples: generateGraphviz(normalizeToAST(parseCompose(entry.yaml).compose)).length > 0
      */
     it("PROPERTY: Loading any example generates non-empty graphviz DOT", () => {
         for (const example of galleryExamples) {
@@ -38,7 +41,7 @@ describe("Examples Gallery - Correctness Properties", () => {
                 enableVariables: true,
                 enableProfiles: false,
             });
-            const dot = generateGraphviz(result.compose);
+            const dot = graphvizFromRaw(result.compose);
             expect(dot.length, `Failed for ${example.id}`).toBeGreaterThan(0);
         }
     });

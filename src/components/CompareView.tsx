@@ -2,17 +2,15 @@ import { memo, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type
 import { AlertTriangle, Info, Plus, Trash2, Upload, XCircle } from "lucide-react";
 import { ProjectComparisonProvider, useProjectComparison } from "../features/project-comparison";
 import { RenderedArchitectureDiagram } from "../features/diagram";
-import { generateMultiProjectGraphviz } from "../utils/graphviz";
 import { useToast } from "./ui";
 
 function CompareViewContent() {
     const { snapshot, admit, remove, clear } = useProjectComparison();
-    const { projects, findings, summary } = snapshot;
+    const { projects, findings, summary, diagramDot } = snapshot;
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isDragging, setIsDragging] = useState(false);
     const toast = useToast();
     const conflicts = useMemo(() => findings.filter((finding) => finding.severity === "error"), [findings]);
-    const dot = useMemo(() => generateMultiProjectGraphviz(projects, conflicts), [conflicts, projects]);
 
     const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
         event.preventDefault();
@@ -244,7 +242,7 @@ function CompareViewContent() {
                 ) : (
                     <div className="w-full h-full bg-[#0b0f1a]">
                         <RenderedArchitectureDiagram
-                            dot={dot}
+                            dot={diagramDot}
                             ariaLabel="Combined project architecture diagram"
                             overlay={analysisOverlay}
                         />

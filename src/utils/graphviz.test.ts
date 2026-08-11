@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
+import { normalizeToAST } from "../models/normalizeToAST";
 import { escapeLabel, generateGraphviz } from "./graphviz";
+
+const graphvizFromRaw = (state: unknown) => generateGraphviz(normalizeToAST(state));
 
 describe("graphviz utils", () => {
     describe("escapeLabel", () => {
@@ -10,8 +13,8 @@ describe("graphviz utils", () => {
 
     describe("generateGraphviz", () => {
         it("returns empty diagram when no services present", () => {
-            const dot = generateGraphviz({});
-            expect(dot).toContain("No services");
+            const dot = graphvizFromRaw({});
+            expect(dot).toBe('digraph G { bgcolor="transparent" empty [label="No services"] }');
         });
 
         it("generates a node for each service", () => {
@@ -21,7 +24,7 @@ describe("graphviz utils", () => {
                     backend: { image: "node" },
                 },
             };
-            const dot = generateGraphviz(state);
+            const dot = graphvizFromRaw(state);
             expect(dot).toContain("frontend");
             expect(dot).toContain("backend");
         });
@@ -32,7 +35,7 @@ describe("graphviz utils", () => {
                     web: { image: "nginx", ports: ["80:80"] },
                 },
             };
-            const dot = generateGraphviz(state);
+            const dot = graphvizFromRaw(state);
             expect(dot).toContain('label="80"');
             expect(dot).toContain("shape=circle");
             expect(dot).toContain("port_web_0");
@@ -47,7 +50,7 @@ describe("graphviz utils", () => {
                     db_net: {},
                 },
             };
-            const dot = generateGraphviz(state);
+            const dot = graphvizFromRaw(state);
             expect(dot).toContain("subgraph cluster_net_db_net");
             expect(dot).toContain('label="🌐 db_net"');
         });
@@ -59,7 +62,7 @@ describe("graphviz utils", () => {
                     api: { image: "node" },
                 },
             };
-            const dot = generateGraphviz(state);
+            const dot = graphvizFromRaw(state);
             expect(dot).toMatch(/web\s*->\s*api/);
         });
 
@@ -72,7 +75,7 @@ describe("graphviz utils", () => {
                     pg_data: {},
                 },
             };
-            const dot = generateGraphviz(state);
+            const dot = graphvizFromRaw(state);
             expect(dot).toContain("vol_pg_data");
             expect(dot).toContain('label="💾 pg_data"');
             expect(dot).toMatch(/db\s*->\s*vol_pg_data/);
@@ -87,7 +90,7 @@ describe("graphviz utils", () => {
                     },
                 },
             };
-            const dot = generateGraphviz(state);
+            const dot = graphvizFromRaw(state);
             // Should extract port numbers (80, 443, 8080), not IP addresses
             expect(dot).toContain('label="80"');
             expect(dot).toContain('label="443"');
@@ -106,7 +109,7 @@ describe("graphviz utils", () => {
                     },
                 },
             };
-            const dot = generateGraphviz(state);
+            const dot = graphvizFromRaw(state);
             // Should extract port numbers from IPv6 addresses
             expect(dot).toContain('label="8080"');
             expect(dot).toContain('label="3000"');
@@ -126,7 +129,7 @@ describe("graphviz utils", () => {
                     },
                 },
             };
-            const dot = generateGraphviz(state);
+            const dot = graphvizFromRaw(state);
             // Should show correct protocols
             expect(dot).toMatch(/label="udp"/);
             expect(dot).toMatch(/label="tcp"/);
@@ -145,7 +148,7 @@ describe("graphviz utils", () => {
                     data: {},
                 },
             };
-            const dot = generateGraphviz(state);
+            const dot = graphvizFromRaw(state);
             expect(dot).toContain('label="80"');
             expect(dot).toContain("nginx");
             expect(dot).toContain("vol_data");
@@ -160,7 +163,7 @@ describe("graphviz utils", () => {
                     },
                 },
             };
-            const dot = generateGraphviz(state);
+            const dot = graphvizFromRaw(state);
             expect(dot).toContain("<node>");
             expect(dot).toContain("backend");
         });
@@ -173,7 +176,7 @@ describe("graphviz utils", () => {
                     },
                 },
             };
-            const dot = generateGraphviz(state);
+            const dot = graphvizFromRaw(state);
             expect(dot).toContain("<build>");
         });
 
@@ -186,7 +189,7 @@ describe("graphviz utils", () => {
                     },
                 },
             };
-            const dot = generateGraphviz(state);
+            const dot = graphvizFromRaw(state);
             expect(dot).toContain("<python>");
             // Should not contain the tag in the label
             expect(dot).not.toMatch(/<python:3\.11-slim>/);
@@ -201,7 +204,7 @@ describe("graphviz utils", () => {
                     },
                 },
             };
-            const dot = generateGraphviz(state);
+            const dot = graphvizFromRaw(state);
             // Postgres should be classified as persistence tier
             expect(dot).toContain("cluster_zone_persistence");
         });
@@ -219,7 +222,7 @@ describe("graphviz utils", () => {
                     },
                 },
             };
-            const dot = generateGraphviz(state);
+            const dot = graphvizFromRaw(state);
             expect(dot).toContain('label="3000"');
             expect(dot).toContain('label="8080"');
             expect(dot).toContain("port_app_0");

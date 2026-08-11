@@ -1,7 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { compareProjects, getComparisonSummary } from "./comparison";
-import type { ComparisonFinding as ComparisonResult } from "../features/project-comparison";
+import type { ComparisonFinding as ComparisonResult, ComparisonProject } from "../features/project-comparison";
+import type { AdmittedComparisonProject } from "../features/project-comparison/internalTypes";
+import { normalizeToAST } from "../models/normalizeToAST";
 import { requireValue } from "../test/typeHelpers";
+
+function admitProjects(projects: readonly ComparisonProject[]): AdmittedComparisonProject[] {
+    return projects.map((project) => ({ project, ast: normalizeToAST(project.content) }));
+}
 
 describe("compareProjects", () => {
     describe("port conflict detection", () => {
@@ -27,7 +33,7 @@ describe("compareProjects", () => {
                 },
             ];
 
-            const results = compareProjects(projects);
+            const results = compareProjects(admitProjects(projects));
             const portConflicts = results.filter((r) => r.category === "port");
 
             expect(portConflicts).toHaveLength(1);
@@ -57,7 +63,7 @@ describe("compareProjects", () => {
                 },
             ];
 
-            const results = compareProjects(projects);
+            const results = compareProjects(admitProjects(projects));
             const portConflicts = results.filter((r) => r.category === "port");
 
             // Should have no conflicts because 127.0.0.1:80 and 0.0.0.0:80 are different bindings
@@ -86,7 +92,7 @@ describe("compareProjects", () => {
                 },
             ];
 
-            const results = compareProjects(projects);
+            const results = compareProjects(admitProjects(projects));
             const portConflicts = results.filter((r) => r.category === "port");
 
             expect(portConflicts).toHaveLength(1);
@@ -115,7 +121,7 @@ describe("compareProjects", () => {
                 },
             ];
 
-            const results = compareProjects(projects);
+            const results = compareProjects(admitProjects(projects));
             const portConflicts = results.filter((r) => r.category === "port");
 
             // Both bind to 127.0.0.1:3000, so it's a conflict
@@ -145,7 +151,7 @@ describe("compareProjects", () => {
                 },
             ];
 
-            const results = compareProjects(projects);
+            const results = compareProjects(admitProjects(projects));
             const portConflicts = results.filter((r) => r.category === "port");
 
             // Different ports, no conflict
@@ -174,7 +180,7 @@ describe("compareProjects", () => {
                 },
             ];
 
-            const results = compareProjects(projects);
+            const results = compareProjects(admitProjects(projects));
             const portConflicts = results.filter((r) => r.category === "port");
 
             // Same IPv6 address and same host port = conflict
@@ -206,7 +212,7 @@ describe("compareProjects", () => {
                 },
             ];
 
-            const results = compareProjects(projects);
+            const results = compareProjects(admitProjects(projects));
             const conflicts = results.filter((r) => r.category === "container_name");
 
             expect(conflicts).toHaveLength(1);
@@ -237,7 +243,7 @@ describe("compareProjects", () => {
                 },
             ];
 
-            const results = compareProjects(projects);
+            const results = compareProjects(admitProjects(projects));
             const volumeConflicts = results.filter((r) => r.category === "volume");
 
             expect(volumeConflicts).toHaveLength(1);
@@ -266,7 +272,7 @@ describe("compareProjects", () => {
                 },
             ];
 
-            const results = compareProjects(projects);
+            const results = compareProjects(admitProjects(projects));
             const volumeConflicts = results.filter((r) => r.category === "volume");
 
             expect(volumeConflicts).toHaveLength(1);

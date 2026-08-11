@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { normalizeToAST } from "../models/normalizeToAST";
 import { enrichComposeState } from "./dockerfileEnricher";
 import { generateGraphviz } from "./graphviz";
 import { clearDockerfileCache } from "./dockerfileFetcher";
+
+const graphvizFromRaw = (state: unknown) => generateGraphviz(normalizeToAST(state));
 
 /**
  * Integration tests for the Dockerfile enrichment pipeline.
@@ -79,7 +82,7 @@ describe("Dockerfile Enrichment Integration", () => {
             timeout: 5000,
         });
 
-        const dot = generateGraphviz(enriched);
+        const dot = graphvizFromRaw(enriched);
 
         // DOT output should contain resolved image names (without tags)
         expect(dot).toContain("<python>");

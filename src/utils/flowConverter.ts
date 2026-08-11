@@ -1,20 +1,32 @@
 import { getSuggestionCounts, getHighestSeverity } from "./suggestions";
-import { normalizeToAST } from "../models/normalizeToAST";
 import { MountTypes } from "../models/ComposeAST";
 import type { Edge, Node } from "@xyflow/react";
-import type { ComposeState, Suggestion } from "../models/composeTypes";
+import type { ComposeAST } from "../models/ComposeAST";
+import type { Position, Suggestion } from "../models/composeTypes";
+
+function positionFromRaw(value: unknown): Position | null {
+    if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+    if (!("_position" in value)) return null;
+    const position = value._position;
+    if (typeof position !== "object" || position === null || Array.isArray(position)) return null;
+    if (!("x" in position) || !("y" in position)) return null;
+    if (typeof position.x !== "number" || typeof position.y !== "number") return null;
+    return { x: position.x, y: position.y };
+}
 
 /**
- * Converts compose state to React Flow nodes and edges.
- * Uses the canonical AST for normalized data reads, raw state for UI positions.
- * @param {object} state - The compose state (raw, includes _position fields)
+ * Converts the workspace AST to React Flow nodes and edges.
+ * Uses retained raw resource metadata for UI positions.
+ * @param {ComposeAST} ast - The canonical Compose read model
  * @param {Array} suggestions - List of suggestions from generateSuggestions
  * @returns {{ nodes: Array, edges: Array }}
  */
-export function stateToFlow(state: ComposeState, suggestions: Suggestion[] = []): { nodes: Node[]; edges: Edge[] } {
+export function stateToFlow(
+    ast: ComposeAST,
+    suggestions: readonly Suggestion[] = [],
+): { nodes: Node[]; edges: Edge[] } {
     const nodes: Node[] = [];
     const edges: Edge[] = [];
-    const ast = normalizeToAST(state);
 
     // Layout constants
     const SERVICE_START_X = 300;
@@ -39,15 +51,14 @@ export function stateToFlow(state: ComposeState, suggestions: Suggestion[] = [])
     const CONFIG_START_Y = 700;
     const CONFIG_SPACING = 180;
 
-    // Services — read from AST, positions from raw state
+    // Services — normalized reads plus retained raw position metadata
     let serviceIndex = 0;
     for (const service of ast.services) {
         const name = service.id;
-        const rawSvc = state.services?.[name];
         const row = Math.floor(serviceIndex / SERVICES_PER_ROW);
         const col = serviceIndex % SERVICES_PER_ROW;
 
-        const position = rawSvc?._position || {
+        const position = positionFromRaw(service._raw) ?? {
             x: SERVICE_START_X + col * SERVICE_SPACING_X,
             y: SERVICE_START_Y + row * SERVICE_SPACING_Y,
         };
@@ -117,8 +128,7 @@ export function stateToFlow(state: ComposeState, suggestions: Suggestion[] = [])
     let networkIndex = 0;
     for (const network of ast.networks) {
         const name = network.id;
-        const rawNet = state.networks?.[name];
-        const position = rawNet?._position || {
+        const position = positionFromRaw(network._raw) ?? {
             x: NETWORK_START_X + networkIndex * NETWORK_SPACING,
             y: NETWORK_START_Y,
         };
@@ -145,8 +155,7 @@ export function stateToFlow(state: ComposeState, suggestions: Suggestion[] = [])
     let volumeIndex = 0;
     for (const volume of ast.volumes) {
         const name = volume.id;
-        const rawVol = state.volumes?.[name];
-        const position = rawVol?._position || {
+        const position = positionFromRaw(volume._raw) ?? {
             x: VOLUME_START_X + volumeIndex * VOLUME_SPACING,
             y: VOLUME_START_Y,
         };
@@ -173,8 +182,7 @@ export function stateToFlow(state: ComposeState, suggestions: Suggestion[] = [])
     let secretIndex = 0;
     for (const secret of ast.secrets) {
         const name = secret.id;
-        const rawSec = state.secrets?.[name];
-        const position = rawSec?._position || {
+        const position = positionFromRaw(secret._raw) ?? {
             x: SECRET_START_X + secretIndex * SECRET_SPACING,
             y: SECRET_START_Y,
         };
@@ -196,8 +204,7 @@ export function stateToFlow(state: ComposeState, suggestions: Suggestion[] = [])
     let configIndex = 0;
     for (const config of ast.configs) {
         const name = config.id;
-        const rawCfg = state.configs?.[name];
-        const position = rawCfg?._position || {
+        const position = positionFromRaw(config._raw) ?? {
             x: CONFIG_START_X + configIndex * CONFIG_SPACING,
             y: CONFIG_START_Y,
         };

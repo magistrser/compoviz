@@ -14,7 +14,7 @@ import { parseCompose } from "../../utils/composeParser";
 import { enrichComposeState } from "../../utils/dockerfileEnricher";
 import { normalizePath } from "../../utils/pathResolver";
 import { generateSuggestions } from "../../utils/suggestions";
-import { validateState } from "../../utils/validation";
+import { validateAST } from "../../utils/validation";
 import { mergeEnv, parseEnvFile } from "../../utils/variableInterpolator";
 import { createParserWorker } from "../../utils/workerManager";
 import { generateYaml } from "../../utils/yaml";
@@ -514,9 +514,9 @@ export function ComposeWorkspaceProvider({ children }: PropsWithChildren) {
             name: issue.stage || "compose",
             message: issue.message || "Parser error",
         }));
-        return [...validateState(state), ...parserIssues];
-    }, [metadata.parserIssues, state]);
-    const suggestions = useMemo(() => generateSuggestions(state), [state]);
+        return [...validateAST(ast), ...parserIssues];
+    }, [ast, metadata.parserIssues]);
+    const suggestions = useMemo(() => generateSuggestions(ast), [ast]);
     const snapshot = useMemo<ComposeWorkspaceSnapshot>(
         () => ({
             state,

@@ -1,5 +1,5 @@
-import { normalizeToAST } from "../models/normalizeToAST";
-import type { ComparisonFinding, ComparisonProject } from "../features/project-comparison/types";
+import type { AdmittedComparisonProject } from "../features/project-comparison/internalTypes";
+import type { ComparisonFinding } from "../features/project-comparison/types";
 
 export type ComparisonResult = ComparisonFinding;
 
@@ -97,19 +97,13 @@ export const extractHostPort = (portMapping: unknown): string | null => {
 
 /**
  * Compare multiple projects and detect conflicts and shared resources.
- * Normalizes each project to AST for consistent data reads.
- * @param {Array<{id: string, name: string, content: object}>} projects
+ * Consumes the canonical AST stored with each admitted project.
+ * @param {AdmittedComparisonProject[]} projects
  * @returns {ComparisonResult[]}
  */
-export function compareProjects(projects: readonly ComparisonProject[]): ComparisonResult[] {
+export function compareProjects(projects: readonly AdmittedComparisonProject[]): ComparisonResult[] {
     const results: ComparisonResult[] = [];
     if (!projects || projects.length < 2) return results;
-
-    // Normalize each project to AST
-    const projectASTs = projects.map((project) => ({
-        name: project.name,
-        ast: normalizeToAST(project.content || {}),
-    }));
 
     // Collect data from all projects using AST
     const portMap = new Map<string, ResourceUsage[]>();
@@ -119,7 +113,8 @@ export function compareProjects(projects: readonly ComparisonProject[]): Compari
     const networkMap = new Map<string, string[]>();
     const envFileMap = new Map<string, ResourceUsage[]>();
 
-    for (const { name: projectName, ast } of projectASTs) {
+    for (const { project, ast } of projects) {
+        const projectName = project.name;
         // Collect services data from AST
         for (const service of ast.services) {
             const serviceName = service.id;

@@ -1,7 +1,7 @@
-import { normalizeToAST } from "../models/normalizeToAST";
 import { getPortConflicts } from "../models/astQueries";
 import { MountTypes } from "../models/ComposeAST";
-import type { ComposeDocument, ValidationIssue } from "../models/composeTypes";
+import type { ComposeAST } from "../models/ComposeAST";
+import type { ValidationIssue } from "../models/composeTypes";
 
 /**
  * Helper to normalize depends_on (can be array or object in Docker Compose).
@@ -31,14 +31,12 @@ export const normalizeArray = (arr: unknown): string[] => {
 };
 
 /**
- * Validates the compose state and returns an array of errors/warnings.
- * Uses the canonical AST for normalized data reads.
- * @param {object} state - The compose state.
+ * Validates the canonical Compose AST and returns an array of errors/warnings.
+ * @param {ComposeAST} ast - The canonical Compose read model.
  * @returns {Array<{type: string, entity: string, name: string, message: string}>} Array of validation issues.
  */
-export const validateState = (state: ComposeDocument): ValidationIssue[] => {
+export const validateAST = (ast: ComposeAST): ValidationIssue[] => {
     const errors: ValidationIssue[] = [];
-    const ast = normalizeToAST(state);
     const containerNames = new Set<string>();
 
     for (const service of ast.services) {

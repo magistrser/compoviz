@@ -1,8 +1,8 @@
-import { normalizeToAST } from "../models/normalizeToAST";
 import { getEffectiveImage, getEffectivePorts, getPrimaryNetwork } from "../models/astQueries";
 import { MountTypes } from "../models/ComposeAST";
-import type { ComposeAST, ServiceNode, ServiceTier } from "../models/ComposeAST";
-import type { ComparisonFinding as ComparisonResult, ComparisonProject } from "../features/project-comparison";
+import type { ComposeAST, PortBinding, ServiceNode, ServiceTier } from "../models/ComposeAST";
+import type { ComparisonFinding as ComparisonResult } from "../features/project-comparison";
+import type { AdmittedComparisonProject } from "../features/project-comparison/internalTypes";
 
 /**
  * Escape special characters for Graphviz labels
@@ -58,21 +58,9 @@ const COLORS = {
 };
 
 /**
- * Detect if input is already a ComposeAST (has services as array with serviceMap).
+ * Generate Graphviz DOT from the canonical Compose AST.
  */
-function isAST(input: unknown): input is ComposeAST {
-    if (typeof input !== "object" || input === null) return false;
-    if (!("services" in input) || !("serviceMap" in input)) return false;
-    return Array.isArray(input.services) && input.serviceMap instanceof Map;
-}
-
-/**
- * Generate Graphviz DOT from compose state or AST.
- * Accepts either raw compose state (for backward compat) or a ComposeAST.
- */
-export const generateGraphviz = (stateOrAst: unknown): string => {
-    const ast = isAST(stateOrAst) ? stateOrAst : normalizeToAST(stateOrAst);
-
+export const generateGraphviz = (ast: ComposeAST): string => {
     if (ast.services.length === 0) {
         return `digraph G { bgcolor="transparent" empty [label="No services"] }`;
     }
@@ -391,8 +379,6 @@ export const generateGraphviz = (stateOrAst: unknown): string => {
 };
 
 // ─── Multi-project support ──────────────────────────────────────────────────
-// Note: generateMultiProjectGraphviz still uses raw state for now.
-// It will be migrated in Task 6 (compareProjects migration).
 
 const PROJECT_COLORS = [
     { bg: "#1e3a8a", border: "#3b82f6", name: "blue" },
@@ -418,8 +404,14 @@ function getConflictUsages(details: unknown): Array<{ project: string; service: 
     );
 }
 
+function comparisonPortLabel(port: PortBinding): string {
+    if (!port.raw.startsWith("{")) return port.raw;
+    if (port.hostPort === "" || port.containerPort === "") return "";
+    return `${port.hostPort}:${port.containerPort}`;
+}
+
 export const generateMultiProjectGraphviz = (
-    projects: readonly ComparisonProject[],
+    projects: readonly AdmittedComparisonProject[],
     conflicts: readonly ComparisonResult[] = [],
 ): string => {
     if (!projects || projects.length === 0) {
@@ -440,9 +432,9 @@ export const generateMultiProjectGraphviz = (
 
     // Collect shared networks
     const allNetworks = new Map<string, number[]>();
-    projects.forEach((project, idx) => {
-        const content = project.content || {};
-        Object.keys(content.networks || {}).forEach((netName) => {
+    projects.forEach(({ ast }, idx) => {
+        ast.networks.forEach((network) => {
+            const netName = network.id;
             const projectIndexes = allNetworks.get(netName) ?? [];
             projectIndexes.push(idx);
             allNetworks.set(netName, projectIndexes);
@@ -462,8 +454,7 @@ export const generateMultiProjectGraphviz = (
     dot += `  compound=true\n`;
     dot += `  newrank=true\n\n`;
 
-    projects.forEach((project, idx) => {
-        const content = project.content || {};
+    projects.forEach(({ project, ast }, idx) => {
         const projectPrefix = `p${idx}_`;
         const color = PROJECT_COLORS[idx % PROJECT_COLORS.length] ?? DEFAULT_PROJECT_COLOR;
 
@@ -474,29 +465,13 @@ export const generateMultiProjectGraphviz = (
         dot += `    fillcolor="${color.bg}20"\n`;
         dot += `    fontcolor="#f1f5f9"\n\n`;
 
-        Object.entries(content.services || {}).forEach(([serviceName, svc]) => {
+        ast.services.forEach((service) => {
+            const serviceName = service.id;
             const nodeId = `${projectPrefix}${sanitizeId(serviceName)}`;
-            const image = typeof svc.image === "string" ? svc.image : "";
+            const image = service.image ?? "";
             const img = image ? (image.split(":")[0] ?? image) : "build";
             const imgShort = img.length > 15 ? `${img.slice(0, 12)}...` : img;
-            const svcPorts = Array.isArray(svc.ports) ? svc.ports : [];
-            const portLabels = svcPorts
-                .map((port) => {
-                    if (typeof port === "string") return port;
-                    if (isRecord(port)) {
-                        const published = port.published || port.target;
-                        const target = port.target || port.published;
-                        if (!published || !target) return "";
-                        if (
-                            (typeof published !== "string" && typeof published !== "number") ||
-                            (typeof target !== "string" && typeof target !== "number")
-                        )
-                            return "";
-                        return `${published}:${target}`;
-                    }
-                    return "";
-                })
-                .filter(Boolean);
+            const portLabels = service.ports.map(comparisonPortLabel).filter(Boolean);
             const portsPreview =
                 portLabels.length > 0
                     ? `\\n${escapeLabel(portLabels.slice(0, 3).join(", "))}${portLabels.length > 3 ? "…" : ""}`
@@ -532,15 +507,12 @@ export const generateMultiProjectGraphviz = (
         });
         dot += `  }\n\n`;
 
-        projects.forEach((project, idx) => {
-            const content = project.content || {};
+        projects.forEach(({ ast }, idx) => {
             const projectPrefix = `p${idx}_`;
-            Object.entries(content.services || {}).forEach(([serviceName, svc]) => {
-                const networks = Array.isArray(svc.networks) ? svc.networks : [];
-                networks.forEach((netName) => {
-                    if (typeof netName !== "string") return;
+            ast.services.forEach((service) => {
+                service.networks.forEach(({ network: netName }) => {
                     if ((allNetworks.get(netName)?.length ?? 0) > 1) {
-                        const nodeId = `${projectPrefix}${sanitizeId(serviceName)}`;
+                        const nodeId = `${projectPrefix}${sanitizeId(service.id)}`;
                         const netId = `shared_net_${sanitizeId(netName)}`;
                         dot += `  ${nodeId} -> ${netId} [style=dashed, color="#a78bfa"]\n`;
                     }

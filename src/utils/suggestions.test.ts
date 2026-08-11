@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { normalizeToAST } from "../models/normalizeToAST";
 import { generateSuggestions, getSuggestionCounts, getHighestSeverity, SuggestionSeverity } from "./suggestions";
 import { requireValue } from "../test/typeHelpers";
 
@@ -25,7 +26,7 @@ describe("generateSuggestions", () => {
                 },
             };
 
-            const suggestions = generateSuggestions(state);
+            const suggestions = generateSuggestions(normalizeToAST(state));
 
             // Should detect missing restart on jellyfin
             const missingRestart = suggestions.find((s) => s.id === "jellyfin-missing-restart");
@@ -35,6 +36,22 @@ describe("generateSuggestions", () => {
             // Should detect invalid depends_on field
             const invalidDepends = suggestions.find((s) => s.id === "jellyfin-invalid-depends-on-restart");
             expect(invalidDepends).toBeDefined();
+        });
+
+        it("preserves raw command detection through the canonical AST", () => {
+            const ast = normalizeToAST({
+                services: {
+                    migration: {
+                        image: "app:1",
+                        command: ["migrate"],
+                    },
+                },
+            });
+
+            const suggestions = generateSuggestions(ast);
+
+            expect(suggestions.some((suggestion) => suggestion.id === "migration-missing-restart")).toBe(true);
+            expect(suggestions.some((suggestion) => suggestion.id === "migration-missing-healthcheck")).toBe(false);
         });
     });
 

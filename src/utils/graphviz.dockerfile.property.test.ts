@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import fc from "fast-check";
+import { normalizeToAST } from "../models/normalizeToAST";
 import { generateGraphviz } from "./graphviz";
+
+const graphvizFromRaw = (state: unknown) => generateGraphviz(normalizeToAST(state));
 
 /**
  * Property-based tests for graphviz.js Dockerfile enrichment integration.
@@ -37,7 +40,7 @@ describe("Feature: dockerfile-metadata-enrichment, Property 6: Resolved Image Di
                     },
                 };
 
-                const dot = generateGraphviz(state);
+                const dot = graphvizFromRaw(state);
                 const imageName = resolvedImage.split(":")[0];
 
                 // The DOT output should contain the image name (without tag)
@@ -62,7 +65,7 @@ describe("Feature: dockerfile-metadata-enrichment, Property 6: Resolved Image Di
                     },
                 };
 
-                const dot = generateGraphviz(state);
+                const dot = graphvizFromRaw(state);
                 const imageName = resolvedImage.split(":")[0];
 
                 // Should contain the image name in the label format: <imageName>
@@ -88,7 +91,7 @@ describe("Feature: dockerfile-metadata-enrichment, Property 7: Tier Classificati
                     },
                 };
 
-                const dot = generateGraphviz(state);
+                const dot = graphvizFromRaw(state);
 
                 // Persistence tier services go into cluster_zone_persistence subgraph
                 expect(dot).toContain("cluster_zone_persistence");
@@ -111,7 +114,7 @@ describe("Feature: dockerfile-metadata-enrichment, Property 7: Tier Classificati
                     },
                 };
 
-                const dot = generateGraphviz(state);
+                const dot = graphvizFromRaw(state);
 
                 // Routing tier services go into cluster_zone_gateway subgraph
                 expect(dot).toContain("cluster_zone_gateway");
@@ -145,8 +148,8 @@ describe("Feature: dockerfile-metadata-enrichment, Property 7: Tier Classificati
                     },
                 };
 
-                const dotWithImage = generateGraphviz(stateWithImage);
-                const dotWithResolved = generateGraphviz(stateWithResolved);
+                const dotWithImage = graphvizFromRaw(stateWithImage);
+                const dotWithResolved = graphvizFromRaw(stateWithResolved);
 
                 // Both should produce the same tier subgraph
                 if (tier === "persistence") {

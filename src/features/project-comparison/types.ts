@@ -26,6 +26,7 @@ export interface ProjectComparisonSnapshot {
     readonly findings: readonly ComparisonFinding[];
     readonly severityCounts: ComparisonSeverityCounts;
     readonly summary: string;
+    readonly diagramDot: string;
 }
 
 export interface ProjectAdmission {

@@ -1,8 +1,7 @@
-import { normalizeToAST } from "../models/normalizeToAST";
 import { getEffectiveImage, getOrphanedVolumes, hasHealthcheck, hasResourceLimits } from "../models/astQueries";
 import { MountTypes, DependencyConditions } from "../models/ComposeAST";
 import type { ComposeAST, ServiceNode } from "../models/ComposeAST";
-import type { ComposeDocument, Suggestion, SuggestionSeverityValue } from "../models/composeTypes";
+import type { Suggestion, SuggestionSeverityValue } from "../models/composeTypes";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -31,14 +30,13 @@ export const SuggestionSeverity = {
 } as const;
 
 /**
- * Generate suggestions for a compose state.
- * Uses the canonical AST for normalized reads, _raw for spec-compliance checks.
- * @param {object} state - The compose state
+ * Generate suggestions for a canonical Compose AST.
+ * Uses normalized reads and _raw for spec-compliance checks.
+ * @param {ComposeAST} ast - The canonical Compose read model
  * @returns {Array<object>} Array of suggestions
  */
-export const generateSuggestions = (state: ComposeDocument): Suggestion[] => {
+export const generateSuggestions = (ast: ComposeAST): Suggestion[] => {
     const suggestions: Suggestion[] = [];
-    const ast = normalizeToAST(state);
 
     // Analyze each service
     for (const service of ast.services) {

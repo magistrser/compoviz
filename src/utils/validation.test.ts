@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { normalizeDependsOn, validateState } from "./validation";
+import { normalizeToAST } from "../models/normalizeToAST";
+import { normalizeDependsOn, validateAST } from "./validation";
 
 describe("validation utils", () => {
     describe("normalizeDependsOn", () => {
@@ -18,10 +19,10 @@ describe("validation utils", () => {
         });
     });
 
-    describe("validateState", () => {
+    describe("validateAST", () => {
         it("detects missing image or build", () => {
             const state = { services: { web: {} } };
-            const errors = validateState(state);
+            const errors = validateAST(normalizeToAST(state));
             expect(errors.some((e) => e.message === "Missing image or build context")).toBe(true);
         });
 
@@ -32,7 +33,7 @@ describe("validation utils", () => {
                     web: { image: "web", ports: ["8080:80"] },
                 },
             };
-            const errors = validateState(state);
+            const errors = validateAST(normalizeToAST(state));
             expect(errors.some((e) => e.message.includes("Port binding 0.0.0.0:8080 already used"))).toBe(true);
         });
 
@@ -43,7 +44,7 @@ describe("validation utils", () => {
                     s2: { image: "i2", container_name: "shared" },
                 },
             };
-            const errors = validateState(state);
+            const errors = validateAST(normalizeToAST(state));
             expect(errors.some((e) => e.message === 'Duplicate container_name "shared"')).toBe(true);
         });
 
@@ -54,7 +55,7 @@ describe("validation utils", () => {
                 },
                 networks: {},
             };
-            const errors = validateState(state);
+            const errors = validateAST(normalizeToAST(state));
             expect(errors.some((e) => e.message === 'Network "frontend" not defined')).toBe(true);
         });
 
@@ -64,8 +65,26 @@ describe("validation utils", () => {
                     web: { image: "nginx", depends_on: ["db"] },
                 },
             };
-            const errors = validateState(state);
+            const errors = validateAST(normalizeToAST(state));
             expect(errors.some((e) => e.message === 'Dependency "db" not found')).toBe(true);
+        });
+
+        it("preserves checks that depend on the admitted raw service shape", () => {
+            const ast = normalizeToAST({
+                services: {
+                    built: { build: {} },
+                    unbuilt: { build: null },
+                },
+            });
+
+            expect(validateAST(ast)).toEqual([
+                {
+                    type: "error",
+                    entity: "service",
+                    name: "unbuilt",
+                    message: "Missing image or build context",
+                },
+            ]);
         });
     });
 });

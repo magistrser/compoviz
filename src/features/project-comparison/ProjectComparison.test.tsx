@@ -22,6 +22,7 @@ describe("useProjectComparison", () => {
             "compose.production",
             "Untitled",
         ]);
+        expect(result.current.snapshot.projects.every((project) => !("ast" in project))).toBe(true);
     });
 
     it("admits one to three projects in order", () => {
@@ -75,7 +76,7 @@ describe("useProjectComparison", () => {
         expect(result.current.snapshot).toBe(before);
     });
 
-    it("keeps findings, severity counts, and prose synchronized after admission", () => {
+    it("keeps findings, severity counts, prose, and diagram input synchronized after admission", () => {
         const { result } = renderHook(useProjectComparison, { wrapper });
         act(() => {
             result.current.admit({
@@ -91,6 +92,11 @@ describe("useProjectComparison", () => {
         expect(result.current.snapshot.findings).toHaveLength(1);
         expect(result.current.snapshot.severityCounts).toEqual({ errors: 1, warnings: 0, info: 0 });
         expect(result.current.snapshot.summary).toBe("1 error found across projects.");
+        expect(result.current.snapshot.diagramDot).toContain('label="frontend"');
+        expect(result.current.snapshot.diagramDot).toContain('label="backend"');
+        expect(result.current.snapshot.diagramDot).toContain("p0_web");
+        expect(result.current.snapshot.diagramDot).toContain("p1_api");
+        expect(result.current.snapshot.diagramDot).toContain('color="#ef4444"');
     });
 
     it("recomputes the whole snapshot after removal and clear", () => {
@@ -113,10 +119,15 @@ describe("useProjectComparison", () => {
         expect(result.current.snapshot.findings).toEqual([]);
         expect(result.current.snapshot.severityCounts).toEqual({ errors: 0, warnings: 0, info: 0 });
         expect(result.current.snapshot.summary).toBe("No conflicts or overlaps detected across projects.");
+        expect(result.current.snapshot.diagramDot).toContain('label="one"');
+        expect(result.current.snapshot.diagramDot).not.toContain('label="two"');
 
         act(() => result.current.clear());
         expect(result.current.snapshot.projects).toEqual([]);
         expect(result.current.snapshot.findings).toEqual([]);
         expect(result.current.snapshot.summary).toBe("No conflicts or overlaps detected across projects.");
+        expect(result.current.snapshot.diagramDot).toBe(
+            'digraph G { bgcolor="transparent" empty [label="No projects"] }',
+        );
     });
 });

@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
+import { normalizeToAST } from "../models/normalizeToAST";
 import { generateGraphviz } from "./graphviz";
+
+const graphvizFromRaw = (state: unknown) => generateGraphviz(normalizeToAST(state));
 
 describe("graphviz port parsing - comprehensive edge cases", () => {
     describe("protocol extraction", () => {
@@ -9,7 +12,7 @@ describe("graphviz port parsing - comprehensive edge cases", () => {
                     web: { image: "nginx", ports: ["80:80"] },
                 },
             };
-            const dot = generateGraphviz(state);
+            const dot = graphvizFromRaw(state);
             expect(dot).toContain('label="tcp"');
         });
 
@@ -19,7 +22,7 @@ describe("graphviz port parsing - comprehensive edge cases", () => {
                     web: { image: "nginx", ports: ["8080:80/tcp"] },
                 },
             };
-            const dot = generateGraphviz(state);
+            const dot = graphvizFromRaw(state);
             expect(dot).toContain('label="tcp"');
         });
 
@@ -29,7 +32,7 @@ describe("graphviz port parsing - comprehensive edge cases", () => {
                     dns: { image: "coredns", ports: ["53:53/udp"] },
                 },
             };
-            const dot = generateGraphviz(state);
+            const dot = graphvizFromRaw(state);
             expect(dot).toContain('label="udp"');
         });
 
@@ -39,7 +42,7 @@ describe("graphviz port parsing - comprehensive edge cases", () => {
                     dns: { image: "coredns", ports: ["53:53/UDP"] },
                 },
             };
-            const dot = generateGraphviz(state);
+            const dot = graphvizFromRaw(state);
             expect(dot).toContain('label="udp"');
         });
 
@@ -49,7 +52,7 @@ describe("graphviz port parsing - comprehensive edge cases", () => {
                     dns: { image: "coredns", ports: ["127.0.0.1:53:53/udp"] },
                 },
             };
-            const dot = generateGraphviz(state);
+            const dot = graphvizFromRaw(state);
             expect(dot).toContain('label="udp"');
             expect(dot).toContain('label="53"');
         });
@@ -60,7 +63,7 @@ describe("graphviz port parsing - comprehensive edge cases", () => {
                     dns: { image: "coredns", ports: ["[::1]:53:53/udp"] },
                 },
             };
-            const dot = generateGraphviz(state);
+            const dot = graphvizFromRaw(state);
             expect(dot).toContain('label="udp"');
             expect(dot).toContain('label="53"');
         });
@@ -74,7 +77,7 @@ describe("graphviz port parsing - comprehensive edge cases", () => {
                     },
                 },
             };
-            const dot = generateGraphviz(state);
+            const dot = graphvizFromRaw(state);
             // Should have both tcp and udp labels
             expect(dot).toContain('label="tcp"');
             expect(dot).toContain('label="udp"');
@@ -88,7 +91,7 @@ describe("graphviz port parsing - comprehensive edge cases", () => {
                     web: { image: "nginx", ports: ["8080:80"] },
                 },
             };
-            const dot = generateGraphviz(state);
+            const dot = graphvizFromRaw(state);
             expect(dot).toContain('label="8080"');
             expect(dot).not.toContain('label="80"'); // Should show host port, not container port
         });
@@ -99,7 +102,7 @@ describe("graphviz port parsing - comprehensive edge cases", () => {
                     web: { image: "nginx", ports: ["10.22.60.110:8080:80"] },
                 },
             };
-            const dot = generateGraphviz(state);
+            const dot = graphvizFromRaw(state);
             expect(dot).toContain('label="8080"');
             expect(dot).not.toContain('label="10.22.60.110"'); // Should NOT show IP as port
         });
@@ -110,7 +113,7 @@ describe("graphviz port parsing - comprehensive edge cases", () => {
                     web: { image: "nginx", ports: ["[::1]:8080:80"] },
                 },
             };
-            const dot = generateGraphviz(state);
+            const dot = graphvizFromRaw(state);
             expect(dot).toContain('label="8080"');
             expect(dot).not.toContain('label="[::1]"');
         });
@@ -121,7 +124,7 @@ describe("graphviz port parsing - comprehensive edge cases", () => {
                     web: { image: "nginx", ports: ["8000-9000:80"] },
                 },
             };
-            const dot = generateGraphviz(state);
+            const dot = graphvizFromRaw(state);
             expect(dot).toContain('label="8000-9000"');
         });
 
@@ -131,7 +134,7 @@ describe("graphviz port parsing - comprehensive edge cases", () => {
                     web: { image: "nginx", ports: ["127.0.0.1:5000-5010:5000-5010"] },
                 },
             };
-            const dot = generateGraphviz(state);
+            const dot = graphvizFromRaw(state);
             expect(dot).toContain('label="5000-5010"');
         });
     });
@@ -143,7 +146,7 @@ describe("graphviz port parsing - comprehensive edge cases", () => {
                     app: { image: "app", ports: ["127.0.0.1:5000-5010:5000-5010/udp"] },
                 },
             };
-            const dot = generateGraphviz(state);
+            const dot = graphvizFromRaw(state);
             expect(dot).toContain('label="5000-5010"');
             expect(dot).toContain('label="udp"');
         });
@@ -154,7 +157,7 @@ describe("graphviz port parsing - comprehensive edge cases", () => {
                     app: { image: "app", ports: ["[2001:db8::1]:8080:80/tcp"] },
                 },
             };
-            const dot = generateGraphviz(state);
+            const dot = graphvizFromRaw(state);
             expect(dot).toContain('label="8080"');
             expect(dot).toContain('label="tcp"');
         });
@@ -175,7 +178,7 @@ describe("graphviz port parsing - comprehensive edge cases", () => {
                     },
                 },
             };
-            const dot = generateGraphviz(state);
+            const dot = graphvizFromRaw(state);
             // Verify all host ports are extracted correctly
             expect(dot).toContain('label="80"');
             expect(dot).toContain('label="443"');

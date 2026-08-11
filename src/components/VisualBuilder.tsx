@@ -103,7 +103,7 @@ function relationshipForEdge(edge: Edge): ComposeRelationshipChange | null {
  */
 export default function VisualBuilder() {
     const { snapshot } = useComposeWorkspace();
-    const { state } = snapshot;
+    const { ast, state } = snapshot;
     const suggestions = useMemo(() => [...snapshot.suggestions], [snapshot.suggestions]);
     const { commit } = useComposeEditing();
     const { suggestionsEnabled, setSuggestionsEnabled } = useUI();
@@ -153,8 +153,8 @@ export default function VisualBuilder() {
 
     // Convert compose state to React Flow format
     const { nodes: initialNodes, edges: initialEdges } = useMemo(
-        () => stateToFlow(state, suggestionsEnabled ? suggestions : []),
-        [state, suggestions, suggestionsEnabled],
+        () => stateToFlow(ast, suggestionsEnabled ? suggestions : []),
+        [ast, suggestions, suggestionsEnabled],
     );
 
     const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
@@ -162,11 +162,11 @@ export default function VisualBuilder() {
 
     // Sync nodes when state changes externally
     React.useEffect(() => {
-        const { nodes: newNodes, edges: newEdges } = stateToFlow(state, suggestionsEnabled ? suggestions : []);
+        const { nodes: newNodes, edges: newEdges } = stateToFlow(ast, suggestionsEnabled ? suggestions : []);
 
         setNodes((prevNodes) => mergeFlowElements(prevNodes, newNodes));
         setEdges((prevEdges) => mergeFlowElements(prevEdges, newEdges));
-    }, [state, suggestions, suggestionsEnabled, setNodes, setEdges]);
+    }, [ast, suggestions, suggestionsEnabled, setNodes, setEdges]);
 
     // Handle new edge connections
     const onConnect = useCallback(

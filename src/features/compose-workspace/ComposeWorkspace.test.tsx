@@ -74,6 +74,71 @@ describe("useComposeWorkspace", () => {
         );
     });
 
+    it("publishes every derived field from the same accepted revision", async () => {
+        parseAsync
+            .mockResolvedValueOnce({
+                compose: { name: "previous", services: { old: { image: "busybox" } } },
+                profiles: ["previous-profile"],
+                profileCounts: { "previous-profile": 1 },
+                variables: ["OLD_TAG"],
+                undefinedVariables: [],
+                errors: [],
+            })
+            .mockResolvedValueOnce({
+                compose: {
+                    name: "current",
+                    services: {
+                        api: { image: "api:2", depends_on: ["missing"] },
+                    },
+                },
+                profiles: ["current-profile"],
+                profileCounts: { "current-profile": 1 },
+                variables: ["CURRENT_TAG"],
+                undefinedVariables: ["CURRENT_TAG"],
+                errors: [
+                    {
+                        type: "warning",
+                        stage: "variable-validation",
+                        message: "Undefined variables: CURRENT_TAG",
+                    },
+                ],
+            });
+        const { result } = renderHook(useComposeWorkspace, { wrapper });
+
+        await act(async () => {
+            await result.current.replace({
+                kind: "yaml",
+                yaml: "name: previous\nservices:\n  old:\n    image: busybox\n",
+                importedFilename: "previous.yml",
+            });
+            await result.current.replace({
+                kind: "yaml",
+                yaml: "name: current\nservices:\n  api:\n    image: api:2\n    depends_on: [missing]\n",
+                importedFilename: "current.yml",
+            });
+        });
+
+        const { snapshot } = result.current;
+        expect(snapshot.state).toMatchObject({ name: "current", services: { api: { image: "api:2" } } });
+        expect(snapshot.ast.name).toBe("current");
+        expect(snapshot.ast.services.map((service) => service.id)).toEqual(["api"]);
+        expect(snapshot.issues).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ name: "api", message: 'Dependency "missing" not found' }),
+                expect.objectContaining({ name: "variable-validation", message: "Undefined variables: CURRENT_TAG" }),
+            ]),
+        );
+        expect(snapshot.suggestions).toEqual(
+            expect.arrayContaining([expect.objectContaining({ id: "api-missing-restart", name: "api" })]),
+        );
+        expect(snapshot.yaml).toContain("name: current");
+        expect(snapshot.yaml).toContain("api:2");
+        expect(snapshot.profiles).toEqual(["current-profile"]);
+        expect(snapshot.variables).toEqual(["CURRENT_TAG"]);
+        expect(snapshot.source?.importedFilename).toBe("current.yml");
+        expect(snapshot.yaml).not.toContain("previous");
+    });
+
     it("rejects invalid YAML without mutating the committed project or source", async () => {
         parseAsync
             .mockResolvedValueOnce({
