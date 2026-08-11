@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import type { PropsWithChildren } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { DependencyConditions } from "../../models";
 import { ComposeWorkspaceProvider, useComposeWorkspace } from "../compose-workspace";
 import { useComposeEditing } from ".";
 
@@ -154,7 +155,13 @@ describe("useComposeEditing", () => {
             result.current.editing.commit({
                 type: "change-relationships",
                 changes: [
-                    { action: "connect", relationship: "depends-on", service: "api", target: "db" },
+                    {
+                        action: "connect",
+                        relationship: "depends-on",
+                        service: "api",
+                        target: "db",
+                        condition: DependencyConditions.STARTED,
+                    },
                     { action: "connect", relationship: "network", service: "api", target: "backend" },
                     { action: "connect", relationship: "volume", service: "api", target: "data" },
                 ],
@@ -171,6 +178,147 @@ describe("useComposeEditing", () => {
             depends_on: [],
             networks: [],
             volumes: [],
+        });
+    });
+
+    it.each([
+        {
+            condition: DependencyConditions.STARTED,
+            expected: ["db"],
+            yamlCondition: null,
+        },
+        {
+            condition: DependencyConditions.HEALTHY,
+            expected: { db: { condition: DependencyConditions.HEALTHY } },
+            yamlCondition: "condition: service_healthy",
+        },
+        {
+            condition: DependencyConditions.COMPLETED,
+            expected: { db: { condition: DependencyConditions.COMPLETED } },
+            yamlCondition: "condition: service_completed_successfully",
+        },
+    ])("creates a dependency with $condition", ({ condition, expected, yamlCondition }) => {
+        const { result } = renderHook(() => ({ editing: useComposeEditing(), workspace: useComposeWorkspace() }), {
+            wrapper,
+        });
+        act(() => {
+            result.current.editing.commit({ type: "add-resource", resource: "service", name: "api" });
+            result.current.editing.commit({ type: "add-resource", resource: "service", name: "db" });
+            result.current.editing.commit({
+                type: "change-relationships",
+                changes: [{ action: "connect", relationship: "depends-on", service: "api", target: "db", condition }],
+            });
+        });
+
+        expect(result.current.workspace.snapshot.state.services.api?.depends_on).toEqual(expected);
+        expect(result.current.workspace.snapshot.yaml).toContain("depends_on:");
+        if (yamlCondition) expect(result.current.workspace.snapshot.yaml).toContain(yamlCondition);
+        else expect(result.current.workspace.snapshot.yaml).not.toContain("condition:");
+
+        act(() => result.current.editing.moveHistory("undo"));
+        expect(result.current.workspace.snapshot.state.services.api?.depends_on).toEqual([]);
+    });
+
+    it("changes one dependency condition while preserving sibling configuration", () => {
+        const { result } = renderHook(() => ({ editing: useComposeEditing(), workspace: useComposeWorkspace() }), {
+            wrapper,
+        });
+        act(() => {
+            result.current.editing.commit({ type: "add-resource", resource: "service", name: "api" });
+            result.current.editing.commit({ type: "add-resource", resource: "service", name: "db" });
+            result.current.editing.commit({ type: "add-resource", resource: "service", name: "worker" });
+            result.current.editing.commit({
+                type: "update-resource",
+                resource: "service",
+                name: "api",
+                data: {
+                    depends_on: {
+                        db: { condition: DependencyConditions.HEALTHY, restart: true },
+                        worker: { condition: DependencyConditions.COMPLETED, required: false },
+                    },
+                },
+            });
+        });
+
+        act(() => {
+            result.current.editing.commit({
+                type: "change-relationships",
+                changes: [
+                    {
+                        action: "update",
+                        relationship: "depends-on",
+                        service: "api",
+                        target: "db",
+                        condition: DependencyConditions.COMPLETED,
+                    },
+                ],
+            });
+        });
+
+        expect(result.current.workspace.snapshot.state.services.api?.depends_on).toEqual({
+            db: { condition: DependencyConditions.COMPLETED, restart: true },
+            worker: { condition: DependencyConditions.COMPLETED, required: false },
+        });
+    });
+
+    it("compacts simple Started dependencies and ignores a repeated condition", () => {
+        const { result } = renderHook(() => ({ editing: useComposeEditing(), workspace: useComposeWorkspace() }), {
+            wrapper,
+        });
+        act(() => {
+            result.current.editing.commit({ type: "add-resource", resource: "service", name: "api" });
+            result.current.editing.commit({ type: "add-resource", resource: "service", name: "db" });
+            result.current.editing.commit({ type: "add-resource", resource: "service", name: "worker" });
+            result.current.editing.commit({
+                type: "update-resource",
+                resource: "service",
+                name: "api",
+                data: {
+                    depends_on: {
+                        db: { condition: DependencyConditions.HEALTHY },
+                        worker: { condition: DependencyConditions.STARTED },
+                    },
+                },
+            });
+        });
+
+        let changed: ReturnType<typeof result.current.editing.commit> | undefined;
+        let unchanged: ReturnType<typeof result.current.editing.commit> | undefined;
+        act(() => {
+            changed = result.current.editing.commit({
+                type: "change-relationships",
+                changes: [
+                    {
+                        action: "update",
+                        relationship: "depends-on",
+                        service: "api",
+                        target: "db",
+                        condition: DependencyConditions.STARTED,
+                    },
+                ],
+            });
+            unchanged = result.current.editing.commit({
+                type: "change-relationships",
+                changes: [
+                    {
+                        action: "update",
+                        relationship: "depends-on",
+                        service: "api",
+                        target: "db",
+                        condition: DependencyConditions.STARTED,
+                    },
+                ],
+            });
+        });
+
+        expect(changed).toEqual({ status: "applied" });
+        expect(unchanged).toEqual({ status: "unchanged" });
+        expect(result.current.workspace.snapshot.state.services.api?.depends_on).toEqual(["db", "worker"]);
+
+        act(() => result.current.editing.moveHistory("undo"));
+        expect(result.current.workspace.snapshot.state.services.api?.depends_on).toEqual({
+            db: { condition: DependencyConditions.HEALTHY },
+            worker: { condition: DependencyConditions.STARTED },
         });
     });
 

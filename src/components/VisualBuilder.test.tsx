@@ -1,7 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import { fireEvent, render, screen, waitFor, within } from "../test/utils";
-import { Suspense, useState, type DragEventHandler, type PropsWithChildren, type ReactNode } from "react";
+import {
+    Suspense,
+    useState,
+    type DragEventHandler,
+    type MouseEvent as ReactMouseEvent,
+    type PropsWithChildren,
+    type ReactNode,
+} from "react";
 import type { Connection, Edge, Node, OnBeforeDelete } from "@xyflow/react";
 import VisualBuilder from "./VisualBuilder";
 import { useComposeWorkspace } from "../features/compose-workspace";
@@ -20,6 +27,7 @@ vi.mock("@xyflow/react", () => ({
         onBeforeDelete,
         onNodesDelete,
         onConnect,
+        onEdgeDoubleClick,
         onEdgesDelete,
         minZoom,
     }: {
@@ -34,67 +42,105 @@ vi.mock("@xyflow/react", () => ({
         onBeforeDelete?: OnBeforeDelete<Node, Edge>;
         onNodesDelete?: (nodes: Node[]) => void;
         onConnect?: (connection: Connection) => void;
+        onEdgeDoubleClick?: (event: ReactMouseEvent, edge: Edge) => void;
         onEdgesDelete?: (edges: Edge[]) => void;
         minZoom?: number;
-    }) => (
-        <div
-            data-testid="react-flow"
-            onDrop={onDrop}
-        >
-            <div data-testid="nodes-count">{nodes?.length || 0}</div>
-            <div data-testid="edges-count">{edges?.length || 0}</div>
-            <output aria-label="Canvas pre-delete enabled">{String(Boolean(onBeforeDelete))}</output>
-            <output aria-label="Canvas minimum zoom">{String(minZoom)}</output>
-            <button
-                onClick={() =>
-                    onInit?.({
-                        screenToFlowPosition: () => ({ x: 100, y: 200 }),
-                        fitView: fitViewMock,
-                    })
-                }
+    }) => {
+        const dependencyEdge = edges?.find((edge) => edge.id.startsWith("dep-"));
+        return (
+            <div
+                data-testid="react-flow"
+                onDrop={onDrop}
             >
-                Initialize canvas
-            </button>
-            <button
-                onClick={async () => {
-                    const candidateNodes = [{ id: "service-api", position: { x: 0, y: 0 }, data: {} }];
-                    const result = await onBeforeDelete?.({ nodes: candidateNodes, edges: [] });
-                    if (result === false) return;
-                    onNodesDelete?.(typeof result === "object" ? result.nodes : candidateNodes);
-                }}
-            >
-                Delete selected flow nodes
-            </button>
-            <button
-                onClick={() =>
-                    onConnect?.({
-                        source: "network-backend",
-                        target: "service-api",
-                        sourceHandle: "network-out",
-                        targetHandle: "network-in",
-                    })
-                }
-            >
-                Connect network input
-            </button>
-            <button
-                onClick={() =>
-                    onEdgesDelete?.([
-                        {
-                            id: "net-api-backend",
+                <div data-testid="nodes-count">{nodes?.length || 0}</div>
+                <div data-testid="edges-count">{edges?.length || 0}</div>
+                <output aria-label="Rendered dependency condition">
+                    {String(dependencyEdge?.data?.condition ?? "")}
+                </output>
+                <output aria-label="Canvas pre-delete enabled">{String(Boolean(onBeforeDelete))}</output>
+                <output aria-label="Canvas minimum zoom">{String(minZoom)}</output>
+                <button
+                    onClick={() =>
+                        onConnect?.({
+                            source: "service-db",
+                            target: "service-api",
+                            sourceHandle: "deps-out",
+                            targetHandle: "deps-in",
+                        })
+                    }
+                >
+                    Connect dependency
+                </button>
+                <button
+                    onClick={() =>
+                        onInit?.({
+                            screenToFlowPosition: () => ({ x: 100, y: 200 }),
+                            fitView: fitViewMock,
+                        })
+                    }
+                >
+                    Initialize canvas
+                </button>
+                <button
+                    onClick={async () => {
+                        const candidateNodes = [{ id: "service-api", position: { x: 0, y: 0 }, data: {} }];
+                        const result = await onBeforeDelete?.({ nodes: candidateNodes, edges: [] });
+                        if (result === false) return;
+                        onNodesDelete?.(typeof result === "object" ? result.nodes : candidateNodes);
+                    }}
+                >
+                    Delete selected flow nodes
+                </button>
+                <button
+                    onClick={() =>
+                        onConnect?.({
                             source: "network-backend",
                             target: "service-api",
                             sourceHandle: "network-out",
                             targetHandle: "network-in",
-                        },
-                    ])
-                }
-            >
-                Disconnect network input
-            </button>
-            {children}
-        </div>
-    ),
+                        })
+                    }
+                >
+                    Connect network input
+                </button>
+                <button
+                    onClick={() =>
+                        onConnect?.({
+                            source: "volume-data",
+                            target: "service-api",
+                            sourceHandle: "volume-out",
+                            targetHandle: "volume-in",
+                        })
+                    }
+                >
+                    Connect volume input
+                </button>
+                <button
+                    className={dependencyEdge ? "react-flow__edge selected" : ""}
+                    data-id={dependencyEdge?.id}
+                    onDoubleClick={(event) => dependencyEdge && onEdgeDoubleClick?.(event, dependencyEdge)}
+                >
+                    Edit dependency edge
+                </button>
+                <button
+                    onClick={() =>
+                        onEdgesDelete?.([
+                            {
+                                id: "net-api-backend",
+                                source: "network-backend",
+                                target: "service-api",
+                                sourceHandle: "network-out",
+                                targetHandle: "network-in",
+                            },
+                        ])
+                    }
+                >
+                    Disconnect network input
+                </button>
+                {children}
+            </div>
+        );
+    },
     Background: () => <div data-testid="background" />,
     Controls: () => <div data-testid="controls" />,
     MiniMap: () => <div data-testid="minimap" />,
@@ -123,9 +169,12 @@ const ComposeProbe = () => {
             <output aria-label="Builder service position">
                 {JSON.stringify(serviceNames[0] ? state.services[serviceNames[0]]?._position : null)}
             </output>
-            <output aria-label="Builder service networks">
-                {JSON.stringify(serviceNames[0] ? (state.services[serviceNames[0]]?.networks ?? []) : [])}
+            <output aria-label="Builder service networks">{JSON.stringify(state.services.api?.networks ?? [])}</output>
+            <output aria-label="Builder service volumes">{JSON.stringify(state.services.api?.volumes ?? [])}</output>
+            <output aria-label="Builder service dependencies">
+                {JSON.stringify(state.services.api?.depends_on ?? [])}
             </output>
+            <output aria-label="Builder YAML">{snapshot.yaml}</output>
             <button onClick={() => moveHistory("undo")}>Undo builder history</button>
         </>
     );
@@ -138,6 +187,14 @@ const renderBuilder = () =>
             <VisualBuilder />
         </Suspense>,
     );
+
+const addService = async (user: ReturnType<typeof userEvent.setup>, name: string) => {
+    await user.click(screen.getByRole("button", { name: "Service" }));
+    const dialog = screen.getByRole("dialog", { name: "Add service" });
+    await user.type(within(dialog).getByRole("textbox", { name: "Service name" }), name);
+    await user.click(within(dialog).getByRole("button", { name: "Add" }));
+    await waitFor(() => expect(screen.getByLabelText("Builder services")).toHaveTextContent(name));
+};
 
 describe("VisualBuilder Component", () => {
     beforeEach(() => {
@@ -322,9 +379,125 @@ describe("VisualBuilder Component", () => {
 
         await user.click(screen.getByRole("button", { name: "Connect network input" }));
         await waitFor(() => expect(screen.getByLabelText("Builder service networks")).toHaveTextContent('["backend"]'));
+        expect(screen.queryByRole("dialog", { name: "Dependency condition" })).not.toBeInTheDocument();
 
         await user.click(screen.getByRole("button", { name: "Disconnect network input" }));
         await waitFor(() => expect(screen.getByLabelText("Builder service networks")).toHaveTextContent("[]"));
+    });
+
+    it("chooses a condition before creating a dependency and undoes it atomically", async () => {
+        const user = userEvent.setup();
+        renderBuilder();
+        await addService(user, "api");
+        await addService(user, "db");
+
+        await user.click(screen.getByRole("button", { name: "Connect dependency" }));
+        const dialog = screen.getByRole("dialog", { name: "Dependency condition" });
+        expect(within(dialog).getByRole("radio", { name: "Started" })).toBeChecked();
+        expect(screen.getByLabelText("Builder service dependencies")).toHaveTextContent("[]");
+
+        await user.click(within(dialog).getByRole("radio", { name: "Healthy" }));
+        await user.click(within(dialog).getByRole("button", { name: "Create dependency" }));
+
+        await waitFor(() => {
+            expect(screen.getByLabelText("Builder service dependencies")).toHaveTextContent(
+                '{"db":{"condition":"service_healthy"}}',
+            );
+            expect(screen.getByLabelText("Rendered dependency condition")).toHaveTextContent("service_healthy");
+            expect(screen.getByLabelText("Builder YAML")).toHaveTextContent("condition: service_healthy");
+        });
+
+        await user.click(screen.getByRole("button", { name: "Undo builder history" }));
+        expect(screen.getByLabelText("Builder service dependencies")).toHaveTextContent("[]");
+    });
+
+    it("does not create a dependency when condition selection is cancelled", async () => {
+        const user = userEvent.setup();
+        renderBuilder();
+        await addService(user, "api");
+        await addService(user, "db");
+
+        await user.click(screen.getByRole("button", { name: "Connect dependency" }));
+        const dialog = screen.getByRole("dialog", { name: "Dependency condition" });
+        await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+        expect(screen.getByLabelText("Builder service dependencies")).toHaveTextContent("[]");
+        expect(screen.getByLabelText("Rendered dependency condition")).toBeEmptyDOMElement();
+    });
+
+    it("changes an existing dependency condition by double-clicking its edge", async () => {
+        const user = userEvent.setup();
+        renderBuilder();
+        await addService(user, "api");
+        await addService(user, "db");
+        await user.click(screen.getByRole("button", { name: "Connect dependency" }));
+        let dialog = screen.getByRole("dialog", { name: "Dependency condition" });
+        await user.click(within(dialog).getByRole("button", { name: "Create dependency" }));
+        await waitFor(() =>
+            expect(screen.getByLabelText("Rendered dependency condition")).toHaveTextContent("service_started"),
+        );
+
+        const edge = screen.getByRole("button", { name: "Edit dependency edge" });
+        await user.click(edge);
+        expect(screen.queryByRole("dialog", { name: "Dependency condition" })).not.toBeInTheDocument();
+        await user.dblClick(edge);
+
+        dialog = screen.getByRole("dialog", { name: "Dependency condition" });
+        expect(within(dialog).getByRole("radio", { name: "Started" })).toBeChecked();
+        await user.click(within(dialog).getByRole("radio", { name: "Completed successfully" }));
+        await user.click(within(dialog).getByRole("button", { name: "Save condition" }));
+
+        await waitFor(() => {
+            expect(screen.getByLabelText("Rendered dependency condition")).toHaveTextContent(
+                "service_completed_successfully",
+            );
+            expect(screen.getByLabelText("Builder service dependencies")).toHaveTextContent(
+                '{"db":{"condition":"service_completed_successfully"}}',
+            );
+        });
+
+        await user.click(screen.getByRole("button", { name: "Undo builder history" }));
+        await waitFor(() => {
+            expect(screen.getByLabelText("Rendered dependency condition")).toHaveTextContent("service_started");
+            expect(screen.getByLabelText("Builder service dependencies")).toHaveTextContent('["db"]');
+        });
+    });
+
+    it("opens the selected dependency condition with Enter", async () => {
+        const user = userEvent.setup();
+        renderBuilder();
+        await addService(user, "api");
+        await addService(user, "db");
+        await user.click(screen.getByRole("button", { name: "Connect dependency" }));
+        let dialog = screen.getByRole("dialog", { name: "Dependency condition" });
+        await user.click(within(dialog).getByRole("radio", { name: "Healthy" }));
+        await user.click(within(dialog).getByRole("button", { name: "Create dependency" }));
+        await waitFor(() =>
+            expect(screen.getByLabelText("Rendered dependency condition")).toHaveTextContent("service_healthy"),
+        );
+
+        const edge = screen.getByRole("button", { name: "Edit dependency edge" });
+        edge.focus();
+        await user.keyboard("{Enter}");
+
+        dialog = screen.getByRole("dialog", { name: "Dependency condition" });
+        expect(within(dialog).getByRole("radio", { name: "Healthy" })).toBeChecked();
+    });
+
+    it("connects a named volume without asking for a dependency condition", async () => {
+        const user = userEvent.setup();
+        renderBuilder();
+        await addService(user, "api");
+        await user.click(screen.getByRole("button", { name: "Volume" }));
+        const dialog = screen.getByRole("dialog", { name: "Add volume" });
+        await user.type(within(dialog).getByRole("textbox", { name: "Volume name" }), "data");
+        await user.click(within(dialog).getByRole("button", { name: "Add" }));
+
+        await user.click(screen.getByRole("button", { name: "Connect volume input" }));
+        await waitFor(() =>
+            expect(screen.getByLabelText("Builder service volumes")).toHaveTextContent('["data:/data/data"]'),
+        );
+        expect(screen.queryByRole("dialog", { name: "Dependency condition" })).not.toBeInTheDocument();
     });
 
     it("leaves the builder unchanged when resource naming is cancelled", async () => {

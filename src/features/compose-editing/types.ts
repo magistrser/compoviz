@@ -1,4 +1,5 @@
 import type { ComposeResource, ComposeService, Position } from "../../models/composeTypes";
+import type { DependencyCondition } from "../../models";
 
 export type ComposeResourceKind = "service" | "network" | "volume" | "secret" | "config";
 
@@ -11,12 +12,25 @@ export interface ComposeResourcePosition extends ComposeResourceReference {
     readonly position: Position;
 }
 
-export interface ComposeRelationshipChange {
-    readonly action: "connect" | "disconnect";
-    readonly relationship: "depends-on" | "network" | "volume";
+interface ComposeRelationshipTarget {
     readonly service: string;
     readonly target: string;
 }
+
+export type ComposeRelationshipChange =
+    | (ComposeRelationshipTarget & {
+          readonly action: "connect" | "update";
+          readonly relationship: "depends-on";
+          readonly condition: DependencyCondition;
+      })
+    | (ComposeRelationshipTarget & {
+          readonly action: "disconnect";
+          readonly relationship: "depends-on";
+      })
+    | (ComposeRelationshipTarget & {
+          readonly action: "connect" | "disconnect";
+          readonly relationship: "network" | "volume";
+      });
 
 export type ComposeEdit =
     | { readonly type: "set-project-name"; readonly name: string }
@@ -58,12 +72,19 @@ export type ComposeEdit =
           readonly service: ComposeService;
           readonly suggestedVolume?: { readonly name: string; readonly config: ComposeResource };
       }
-    | {
+    | (ComposeRelationshipTarget & {
+          readonly type: "connect-relationship";
+          readonly relationship: "depends-on";
+          readonly condition: DependencyCondition;
+      })
+    | (ComposeRelationshipTarget & {
+          readonly type: "disconnect-relationship";
+          readonly relationship: "depends-on";
+      })
+    | (ComposeRelationshipTarget & {
           readonly type: "connect-relationship" | "disconnect-relationship";
-          readonly relationship: "depends-on" | "network" | "volume";
-          readonly service: string;
-          readonly target: string;
-      }
+          readonly relationship: "network" | "volume";
+      })
     | {
           readonly type: "change-relationships";
           readonly changes: readonly ComposeRelationshipChange[];

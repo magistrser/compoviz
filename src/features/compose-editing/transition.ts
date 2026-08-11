@@ -1,7 +1,8 @@
-import type { ComposeResource, ComposeService, ComposeState } from "../../models/composeTypes";
+import { DependencyConditions, type DependencyCondition } from "../../models";
+import type { ComposeDependencyConfig, ComposeResource, ComposeService, ComposeState } from "../../models/composeTypes";
 import { deepEqual } from "../../utils/objectUtils";
-import { normalizeArray, normalizeDependsOn } from "../../utils/validation";
-import type { ComposeEdit, ComposeEditOutcome, ComposeResourceKind } from "./types";
+import { normalizeArray } from "../../utils/validation";
+import type { ComposeEdit, ComposeEditOutcome, ComposeRelationshipChange, ComposeResourceKind } from "./types";
 
 type TransitionResult = { status: "applied"; state: ComposeState } | Exclude<ComposeEditOutcome, { status: "applied" }>;
 
@@ -85,13 +86,106 @@ function finish(current: ComposeState, next: ComposeState): TransitionResult {
     return deepEqual(current, next) ? { status: "unchanged" } : { status: "applied", state: next };
 }
 
-function updateServiceRelationship(
-    current: ComposeState,
+function dependencyEntries(dependsOn: ComposeService["depends_on"]): Array<[string, ComposeDependencyConfig]> {
+    if (Array.isArray(dependsOn)) {
+        return dependsOn.filter((value): value is string => typeof value === "string").map((name) => [name, {}]);
+    }
+    if (!dependsOn || typeof dependsOn !== "object") return [];
+    return Object.entries(dependsOn).map(([name, config]) => [
+        name,
+        config && typeof config === "object" ? { ...config } : {},
+    ]);
+}
+
+function dependencyCondition(config: ComposeDependencyConfig): DependencyCondition | null {
+    switch (config.condition) {
+        case undefined:
+        case DependencyConditions.STARTED:
+            return DependencyConditions.STARTED;
+        case DependencyConditions.HEALTHY:
+            return DependencyConditions.HEALTHY;
+        case DependencyConditions.COMPLETED:
+            return DependencyConditions.COMPLETED;
+        default:
+            return null;
+    }
+}
+
+function serializeDependencies(
+    entries: ReadonlyArray<readonly [string, ComposeDependencyConfig]>,
+): NonNullable<ComposeService["depends_on"]> {
+    const normalizedEntries = entries.map(([name, config]) => {
+        if (config.condition !== DependencyConditions.STARTED) return [name, config] as const;
+        const { condition: _condition, ...remaining } = config;
+        return [name, remaining] as const;
+    });
+    if (normalizedEntries.every(([, config]) => Object.keys(config).length === 0)) {
+        return normalizedEntries.map(([name]) => name);
+    }
+    return Object.fromEntries(normalizedEntries);
+}
+
+function updateDependencies(
+    dependsOn: ComposeService["depends_on"],
+    edit: Extract<ComposeRelationshipChange, { relationship: "depends-on" }>,
+): NonNullable<ComposeService["depends_on"]> {
+    const entries = dependencyEntries(dependsOn);
+    const index = entries.findIndex(([name]) => name === edit.target);
+    if (edit.action === "disconnect") {
+        if (index === -1) return dependsOn ?? [];
+        return serializeDependencies(entries.filter(([name]) => name !== edit.target));
+    }
+
+    const existing = entries[index];
+    if (existing && dependencyCondition(existing[1]) === edit.condition) return dependsOn ?? [];
+
+    const config = existing ? { ...existing[1] } : {};
+    if (edit.condition === DependencyConditions.STARTED) delete config.condition;
+    else config.condition = edit.condition;
+    if (index === -1) entries.push([edit.target, config]);
+    else entries[index] = [edit.target, config];
+    return serializeDependencies(entries);
+}
+
+function relationshipChangeForEdit(
     edit: Extract<ComposeEdit, { type: "connect-relationship" | "disconnect-relationship" }>,
-): TransitionResult {
+): ComposeRelationshipChange {
+    if (edit.type === "connect-relationship" && edit.relationship === "depends-on") {
+        return {
+            action: "connect",
+            relationship: edit.relationship,
+            service: edit.service,
+            target: edit.target,
+            condition: edit.condition,
+        };
+    }
+    if (edit.relationship === "depends-on") {
+        return {
+            action: "disconnect",
+            relationship: edit.relationship,
+            service: edit.service,
+            target: edit.target,
+        };
+    }
+    return {
+        action: edit.type === "connect-relationship" ? "connect" : "disconnect",
+        relationship: edit.relationship,
+        service: edit.service,
+        target: edit.target,
+    };
+}
+
+function updateServiceRelationship(current: ComposeState, edit: ComposeRelationshipChange): TransitionResult {
     const service = current.services[edit.service];
     if (!service) return { status: "rejected", reason: "missing-resource" };
     if (edit.relationship === "depends-on" && !current.services[edit.target]) {
+        return { status: "rejected", reason: "invalid-relationship" };
+    }
+    if (
+        edit.relationship === "depends-on" &&
+        edit.action === "update" &&
+        !dependencyEntries(service.depends_on).some(([name]) => name === edit.target)
+    ) {
         return { status: "rejected", reason: "invalid-relationship" };
     }
     if (edit.relationship === "network" && !current.networks[edit.target]) {
@@ -103,20 +197,12 @@ function updateServiceRelationship(
 
     let data: Partial<ComposeService>;
     if (edit.relationship === "depends-on") {
-        const values = normalizeDependsOn(service.depends_on);
-        data = {
-            depends_on:
-                edit.type === "connect-relationship"
-                    ? values.includes(edit.target)
-                        ? values
-                        : [...values, edit.target]
-                    : values.filter((value) => value !== edit.target),
-        };
+        data = { depends_on: updateDependencies(service.depends_on, edit) };
     } else if (edit.relationship === "network") {
         const values = normalizeArray(service.networks);
         data = {
             networks:
-                edit.type === "connect-relationship"
+                edit.action === "connect"
                     ? values.includes(edit.target)
                         ? values
                         : [...values, edit.target]
@@ -127,7 +213,7 @@ function updateServiceRelationship(
         const mount = `${edit.target}:/data/${edit.target}`;
         data = {
             volumes:
-                edit.type === "connect-relationship"
+                edit.action === "connect"
                     ? values.some((value) => value.startsWith(`${edit.target}:`))
                         ? values
                         : [...values, mount]
@@ -251,16 +337,11 @@ export function applyComposeEdit(current: ComposeState, edit: ComposeEdit): Tran
         }
         case "connect-relationship":
         case "disconnect-relationship":
-            return updateServiceRelationship(current, edit);
+            return updateServiceRelationship(current, relationshipChangeForEdit(edit));
         case "change-relationships": {
             let next = current;
             for (const change of edit.changes) {
-                const result = updateServiceRelationship(next, {
-                    type: change.action === "connect" ? "connect-relationship" : "disconnect-relationship",
-                    relationship: change.relationship,
-                    service: change.service,
-                    target: change.target,
-                });
+                const result = updateServiceRelationship(next, change);
                 if (result.status === "rejected") return result;
                 if (result.status === "applied") next = result.state;
             }

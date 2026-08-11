@@ -13,4 +13,10 @@ export { TextArea } from "./TextArea";
 
 export { ToastProvider, useToast } from "./Toast";
 export { PopupProvider, usePopup } from "./Popup";
-export type { ConfirmationPopupOptions, PopupApi, TextPopupOptions } from "./Popup";
+export type {
+    ChoicePopupOption,
+    ChoicePopupOptions,
+    ConfirmationPopupOptions,
+    PopupApi,
+    TextPopupOptions,
+} from "./Popup";

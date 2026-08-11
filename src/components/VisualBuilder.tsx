@@ -19,6 +19,7 @@ import "@xyflow/react/dist/style.css";
 
 import { nodeTypes } from "./nodes";
 import { DEPENDENCY_CONDITION_VISUALS, edgeTypes } from "./edges";
+import { DependencyConditions, type DependencyCondition } from "../models";
 import { routingObstaclesForNodes } from "./edges/orthogonalPath";
 import BuilderToolbar from "./BuilderToolbar";
 import NodeConfigPanel from "./NodeConfigPanel";
@@ -40,6 +41,14 @@ interface SelectedNode {
     type: BuilderNodeType;
     name: string;
     id: string;
+}
+
+type BuilderRelationshipTarget =
+    | { relationship: "depends-on"; service: string; target: string }
+    | { relationship: "network" | "volume"; service: string; target: string };
+
+interface EditableDependency extends Omit<BuilderRelationshipTarget, "relationship"> {
+    condition: DependencyCondition;
 }
 
 const singularResourceTypes: Record<ResourceType, BuilderNodeType> = {
@@ -73,20 +82,45 @@ function isBuilderNodeType(value: string): value is BuilderNodeType {
     return value in pluralResourceTypes;
 }
 
-function relationshipForConnection(connection: Connection): ComposeRelationshipChange | null {
+const dependencyConditionChoices = DEPENDENCY_CONDITION_VISUALS.map((visual) => ({
+    value: visual.condition,
+    label: visual.label,
+    color: visual.color,
+}));
+
+function dependencyConditionForValue(value: string | null): DependencyCondition | null {
+    return DEPENDENCY_CONDITION_VISUALS.find((visual) => visual.condition === value)?.condition ?? null;
+}
+
+function relationshipForConnection(connection: Connection): BuilderRelationshipTarget | null {
     if (!connection.source || !connection.target) return null;
     const source = parseNodeId(connection.source);
     const target = parseNodeId(connection.target);
     if (source.type === "service" && target.type === "service") {
-        return { action: "connect", relationship: "depends-on", service: target.name, target: source.name };
+        return {
+            relationship: "depends-on",
+            service: target.name,
+            target: source.name,
+        };
     }
     if (source.type === "network" && target.type === "service") {
-        return { action: "connect", relationship: "network", service: target.name, target: source.name };
+        return { relationship: "network", service: target.name, target: source.name };
     }
     if (source.type === "volume" && target.type === "service") {
-        return { action: "connect", relationship: "volume", service: target.name, target: source.name };
+        return { relationship: "volume", service: target.name, target: source.name };
     }
     return null;
+}
+
+function dependencyForEdge(edge: Edge): EditableDependency | null {
+    if (edge.type !== "dependsOnEdge" && !edge.id.startsWith("dep-")) return null;
+    const source = parseNodeId(edge.source);
+    const target = parseNodeId(edge.target);
+    if (source.type !== "service" || target.type !== "service") return null;
+    const condition =
+        dependencyConditionForValue(typeof edge.data?.condition === "string" ? edge.data.condition : null) ??
+        DependencyConditions.STARTED;
+    return { service: target.name, target: source.name, condition };
 }
 
 function relationshipForEdge(edge: Edge): ComposeRelationshipChange | null {
@@ -194,13 +228,76 @@ export default function VisualBuilder() {
         setEdges((prevEdges) => mergeFlowElements(prevEdges, newEdges));
     }, [ast, suggestions, suggestionsEnabled, setNodes, setEdges]);
 
+    const chooseDependencyCondition = useCallback(
+        async (
+            dependency: Omit<EditableDependency, "condition">,
+            initialValue: DependencyCondition,
+            action: "connect" | "update",
+        ) => {
+            const selected = await popup.requestChoice({
+                title: "Dependency condition",
+                description: `Choose when ${dependency.service} may start after ${dependency.target}.`,
+                label: "Condition",
+                options: dependencyConditionChoices,
+                initialValue,
+                confirmLabel: action === "connect" ? "Create dependency" : "Save condition",
+            });
+            const condition = dependencyConditionForValue(selected);
+            if (!condition) return;
+            commit({
+                type: "change-relationships",
+                changes: [{ action, relationship: "depends-on", ...dependency, condition }],
+            });
+        },
+        [commit, popup],
+    );
+
     // Handle new edge connections
     const onConnect = useCallback(
         (connection: Connection) => {
             const relationship = relationshipForConnection(connection);
-            if (relationship) commit({ type: "change-relationships", changes: [relationship] });
+            if (!relationship) return;
+            if (relationship.relationship === "depends-on") {
+                void chooseDependencyCondition(relationship, DependencyConditions.STARTED, "connect");
+                return;
+            }
+            commit({
+                type: "change-relationships",
+                changes: [{ action: "connect", ...relationship }],
+            });
         },
-        [commit],
+        [chooseDependencyCondition, commit],
+    );
+
+    const editDependencyEdge = useCallback(
+        (edge: Edge) => {
+            const dependency = dependencyForEdge(edge);
+            if (!dependency) return;
+            const { condition, ...target } = dependency;
+            void chooseDependencyCondition(target, condition, "update");
+        },
+        [chooseDependencyCondition],
+    );
+
+    const onEdgeDoubleClick = useCallback(
+        (_event: React.MouseEvent, edge: Edge) => {
+            editDependencyEdge(edge);
+        },
+        [editDependencyEdge],
+    );
+
+    const onBuilderKeyDown = useCallback(
+        (event: React.KeyboardEvent<HTMLDivElement>) => {
+            if (event.key !== "Enter" || event.defaultPrevented || !(event.target instanceof Element)) return;
+            const edgeElement = event.target.closest(".react-flow__edge.selected[data-id]");
+            const edgeId = edgeElement?.getAttribute("data-id");
+            if (!edgeId) return;
+            const edge = edges.find((candidate) => candidate.id === edgeId);
+            if (!edge || !dependencyForEdge(edge)) return;
+            event.preventDefault();
+            editDependencyEdge(edge);
+        },
+        [edges, editDependencyEdge],
     );
 
     // Handle node click - open config panel
@@ -438,6 +535,7 @@ export default function VisualBuilder() {
             <div
                 className="visual-builder"
                 ref={reactFlowWrapper}
+                onKeyDown={onBuilderKeyDown}
             >
                 <ReactFlow
                     nodes={nodes}
@@ -447,6 +545,7 @@ export default function VisualBuilder() {
                     onConnect={onConnect}
                     onNodeClick={onNodeClick}
                     onNodeDoubleClick={onNodeDoubleClick}
+                    onEdgeDoubleClick={onEdgeDoubleClick}
                     onBeforeDelete={onBeforeDelete}
                     onNodesDelete={onNodesDelete}
                     onEdgesDelete={onEdgesDelete}

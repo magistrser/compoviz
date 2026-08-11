@@ -28,10 +28,31 @@ const PopupHarness = () => {
         setResult(confirmed ? "confirmed" : "cancelled");
     };
 
+    const requestCondition = async () => {
+        const condition = await popup.requestChoice({
+            title: "Dependency condition",
+            description: "Choose when the dependent service may start.",
+            label: "Condition",
+            initialValue: "service_healthy",
+            confirmLabel: "Save condition",
+            options: [
+                { value: "service_started", label: "Started", color: "#E06C9A" },
+                { value: "service_healthy", label: "Healthy", color: "#C084FC" },
+                {
+                    value: "service_completed_successfully",
+                    label: "Completed successfully",
+                    color: "#818CF8",
+                },
+            ],
+        });
+        setResult(condition ?? "cancelled");
+    };
+
     return (
         <>
             <button onClick={() => void requestName()}>Add service</button>
             <button onClick={() => void requestDelete()}>Delete resource</button>
+            <button onClick={() => void requestCondition()}>Edit dependency</button>
             <output aria-label="Popup result">{result}</output>
         </>
     );
@@ -160,6 +181,61 @@ describe("PopupProvider", () => {
         expect(deleteButton).toHaveFocus();
         await user.tab();
         expect(cancelButton).toHaveFocus();
+    });
+
+    it("confirms an initially selected choice with its visual key and restores focus", async () => {
+        const user = userEvent.setup();
+        render(
+            <PopupProvider>
+                <PopupHarness />
+            </PopupProvider>,
+        );
+
+        const trigger = screen.getByRole("button", { name: "Edit dependency" });
+        await user.click(trigger);
+
+        const dialog = screen.getByRole("dialog", { name: "Dependency condition" });
+        const healthy = within(dialog).getByRole("radio", { name: "Healthy" });
+        const completed = within(dialog).getByRole("radio", { name: "Completed successfully" });
+        expect(healthy).toBeChecked();
+        expect(healthy).toHaveFocus();
+        expect(healthy.closest("label")?.querySelector(".popup-choice-swatch")).toHaveStyle({
+            backgroundColor: "#C084FC",
+        });
+
+        await user.click(completed);
+        await user.click(within(dialog).getByRole("button", { name: "Save condition" }));
+
+        await waitFor(() =>
+            expect(screen.getByLabelText("Popup result")).toHaveTextContent("service_completed_successfully"),
+        );
+        expect(trigger).toHaveFocus();
+    });
+
+    it("cancels a choice with Escape and keeps keyboard focus within the dialog", async () => {
+        const user = userEvent.setup();
+        render(
+            <PopupProvider>
+                <PopupHarness />
+            </PopupProvider>,
+        );
+
+        const trigger = screen.getByRole("button", { name: "Edit dependency" });
+        await user.click(trigger);
+        const dialog = screen.getByRole("dialog", { name: "Dependency condition" });
+        const healthy = within(dialog).getByRole("radio", { name: "Healthy" });
+        const saveButton = within(dialog).getByRole("button", { name: "Save condition" });
+
+        expect(healthy).toHaveFocus();
+        await user.click(within(dialog).getByRole("radio", { name: "Started" }));
+        await user.tab({ shift: true });
+        expect(saveButton).toHaveFocus();
+        await user.tab();
+        expect(within(dialog).getByRole("radio", { name: "Started" })).toHaveFocus();
+
+        await user.keyboard("{Escape}");
+        await waitFor(() => expect(screen.getByLabelText("Popup result")).toHaveTextContent("cancelled"));
+        expect(trigger).toHaveFocus();
     });
 
     it("settles an active request as cancelled when the provider unmounts", async () => {
