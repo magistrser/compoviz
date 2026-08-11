@@ -2,7 +2,7 @@
 import { render } from "@testing-library/react";
 import type { PropsWithChildren, ReactElement } from "react";
 import type { RenderOptions, RenderResult } from "@testing-library/react";
-import { ComposeProvider } from "../hooks/useCompose";
+import { ComposeWorkspaceProvider } from "../features/compose-workspace";
 import { UIProvider } from "../context/UIContext";
 import { PopupProvider, ToastProvider } from "../components/ui";
 
@@ -16,11 +16,11 @@ export function renderWithProviders(
     function Wrapper({ children }: PropsWithChildren) {
         return (
             <UIProvider>
-                <ComposeProvider>
+                <ComposeWorkspaceProvider>
                     <PopupProvider>
                         <ToastProvider>{children}</ToastProvider>
                     </PopupProvider>
-                </ComposeProvider>
+                </ComposeWorkspaceProvider>
             </UIProvider>
         );
     }

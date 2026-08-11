@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import { Layers, Check, Search } from "lucide-react";
-import { useCompose } from "../../hooks/useCompose";
+import { useComposeWorkspace } from "../compose-workspace";
 
 export const ProfilesPanel = () => {
-    const { profiles, activeProfiles, setActiveProfiles, profileCounts } = useCompose();
+    const { snapshot, configure } = useComposeWorkspace();
+    const { profiles, activeProfiles, profileCounts } = snapshot;
     const [expanded, setExpanded] = useState(false);
     const [query, setQuery] = useState("");
 
@@ -15,14 +16,14 @@ export const ProfilesPanel = () => {
 
     const toggleProfile = (profile: string) => {
         if (activeProfiles.includes(profile)) {
-            setActiveProfiles(activeProfiles.filter((p) => p !== profile));
+            void configure({ activeProfiles: activeProfiles.filter((p) => p !== profile) });
         } else {
-            setActiveProfiles([...activeProfiles, profile]);
+            void configure({ activeProfiles: [...activeProfiles, profile] });
         }
     };
 
-    const selectAll = () => hasProfiles && setActiveProfiles([...profiles]);
-    const clearAll = () => hasProfiles && setActiveProfiles([]);
+    const selectAll = () => hasProfiles && void configure({ activeProfiles: [...profiles] });
+    const clearAll = () => hasProfiles && void configure({ activeProfiles: [] });
     const hasProfiles = profiles.length > 0;
 
     return (

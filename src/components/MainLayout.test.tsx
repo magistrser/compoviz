@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { render } from "../test/utils";
 import MainLayout from "./MainLayout";
 
@@ -12,8 +13,15 @@ vi.mock("./CompareView", () => ({
     default: () => <div data-testid="compare-view">Compare View</div>,
 }));
 
-vi.mock("../features/diagram/GraphvizDiagram", () => ({
-    GraphvizDiagram: () => <div data-testid="graphviz-diagram">Diagram View</div>,
+vi.mock("../features/diagram/RenderedArchitectureDiagram", () => ({
+    RenderedArchitectureDiagram: ({ ariaLabel }: { ariaLabel: string }) => (
+        <div
+            role="img"
+            aria-label={ariaLabel}
+        >
+            Diagram View
+        </div>
+    ),
 }));
 
 describe("MainLayout Component", () => {
@@ -107,7 +115,7 @@ describe("MainLayout Component", () => {
         fireEvent.click(viewButton);
 
         await waitFor(() => {
-            expect(screen.getByTestId("graphviz-diagram")).toBeInTheDocument();
+            expect(screen.getByRole("img", { name: "Docker Compose architecture diagram" })).toBeInTheDocument();
         });
     });
 
@@ -149,6 +157,32 @@ describe("MainLayout Component", () => {
         fireEvent.change(projectInput, { target: { value: "My Project" } });
 
         expect(projectInput.value).toBe("My Project");
+    });
+
+    it("leaves resources unchanged when sidebar naming is cancelled", async () => {
+        const user = userEvent.setup();
+        render(<MainLayout />);
+
+        await user.click(screen.getByRole("button", { name: "Add Service" }));
+        const dialog = screen.getByRole("dialog", { name: "Add service" });
+        await user.type(within(dialog).getByRole("textbox", { name: "Service name" }), "api");
+        await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+        expect(screen.queryByText("api")).not.toBeInTheDocument();
+        expect(screen.getByTitle(/undo/i)).toBeDisabled();
+    });
+
+    it("preserves the project when clearing is cancelled", async () => {
+        const user = userEvent.setup();
+        render(<MainLayout />);
+        const projectInput = screen.getByPlaceholderText<HTMLInputElement>(/project name/i);
+        await user.type(projectInput, "Keep me");
+
+        await user.click(screen.getByRole("button", { name: "Clear All" }));
+        const dialog = screen.getByRole("dialog", { name: "Clear all configuration?" });
+        await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+        expect(projectInput).toHaveValue("Keep me");
     });
 
     it("shows Clear All button", () => {

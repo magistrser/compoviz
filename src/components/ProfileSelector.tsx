@@ -1,9 +1,10 @@
 import { useMemo, useRef, useState, useEffect } from "react";
 import { Layers, Check, X, Search } from "lucide-react";
-import { useCompose } from "../hooks/useCompose";
+import { useComposeWorkspace } from "../features/compose-workspace";
 
 export const ProfileSelector = () => {
-    const { profiles, activeProfiles, setActiveProfiles, profileCounts } = useCompose();
+    const { snapshot, configure } = useComposeWorkspace();
+    const { profiles, activeProfiles, profileCounts } = snapshot;
     const [isOpen, setIsOpen] = useState(false);
     const [query, setQuery] = useState("");
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -28,14 +29,14 @@ export const ProfileSelector = () => {
 
     const toggleProfile = (profile: string) => {
         if (activeProfiles.includes(profile)) {
-            setActiveProfiles(activeProfiles.filter((p) => p !== profile));
+            void configure({ activeProfiles: activeProfiles.filter((p) => p !== profile) });
         } else {
-            setActiveProfiles([...activeProfiles, profile]);
+            void configure({ activeProfiles: [...activeProfiles, profile] });
         }
     };
 
-    const selectAll = () => setActiveProfiles([...profiles]);
-    const clearAll = () => setActiveProfiles([]);
+    const selectAll = () => void configure({ activeProfiles: [...profiles] });
+    const clearAll = () => void configure({ activeProfiles: [] });
 
     const hasProfiles = profiles.length > 0;
     const activeLabel = activeProfiles.length > 0 ? activeProfiles.join(", ") : "None";

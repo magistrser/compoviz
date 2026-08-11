@@ -1,4 +1,4 @@
-import { lazy, Suspense, type ChangeEvent, type DragEvent } from "react";
+import { lazy, Suspense, useState, type ChangeEvent, type DragEvent, type MouseEvent as ReactMouseEvent } from "react";
 import {
     Plus,
     Download,
@@ -17,22 +17,20 @@ import {
     Github,
 } from "lucide-react";
 
-// Hooks
-import { useCompose } from "../hooks/useCompose";
 import { useUI } from "../context/UIContext";
-import { useFileImport } from "../hooks/useFileImport";
-import { useProjectActions } from "../hooks/useProjectActions";
+import { useComposeWorkspace } from "../features/compose-workspace";
+import { useComposeEditing } from "../features/compose-editing";
 import { generateGraphviz } from "../utils/graphviz";
 import { serviceTemplates } from "../data/templates";
 
 // UI Components
-import { IconButton, useToast } from "./ui";
+import { IconButton, usePopup, useToast } from "./ui";
 
 // Feature Components
 import { ServiceEditor, NetworkEditor, VolumeEditor, SecretEditor, ConfigEditor } from "../features/editor";
 import { ResourceTree } from "../features/sidebar";
 import ErrorIndicator from "./ErrorIndicator";
-import { GraphvizDiagram } from "../features/diagram";
+import { ContextMenu, RenderedArchitectureDiagram } from "../features/diagram";
 import { CodePreview } from "../features/code-preview";
 import { TemplateModal } from "./modals";
 import CompareView from "./CompareView";
@@ -42,7 +40,17 @@ import Footer from "./Footer";
 import WhatsNewModal from "./WhatsNewModal";
 import { getExample } from "../data/examples";
 import type { AnnouncementAction } from "../data/announcements";
-import type { ComposeResource, ComposeService, ImportFile } from "../models/composeTypes";
+import type { ComposeResource, ComposeService } from "../models/composeTypes";
+import type { ComposeResourceKind } from "../features/compose-editing";
+import type { ResourceType } from "../context/UIContext";
+
+const editingResourceKinds = {
+    services: "service",
+    networks: "network",
+    volumes: "volume",
+    secrets: "secret",
+    configs: "config",
+} as const satisfies Record<string, ComposeResourceKind>;
 
 // Lazy load the Visual Builder (React Flow) - only loads when user clicks Build tab
 const VisualBuilder = lazy(() => import("./VisualBuilder"));
@@ -65,9 +73,10 @@ const BuilderSkeleton = () => (
  * Uses context hooks instead of receiving props
  */
 export default function MainLayout() {
-    // Get data state from ComposeContext
-    const { state, ast, dispatch, errors, undo, redo, canUndo, canRedo, handleExport, loadFiles, resetProject } =
-        useCompose();
+    const { snapshot, replace, clear, downloadYaml } = useComposeWorkspace();
+    const { state, ast } = snapshot;
+    const errors = [...snapshot.issues];
+    const { commit, moveHistory, canUndo, canRedo } = useComposeEditing();
 
     // Get UI state from UIContext
     const {
@@ -89,39 +98,94 @@ export default function MainLayout() {
         setShowMobileCode,
     } = useUI();
 
-    // File Import Hook
     const toast = useToast();
-    const { isDragging, setIsDragging, collectDroppedFiles, handleImport } = useFileImport(
-        loadFiles,
-        setActiveView,
-        isMobile,
-        toast.error,
-    );
+    const [diagramContextMenu, setDiagramContextMenu] = useState<{ x: number; y: number } | null>(null);
+    const popup = usePopup();
+    const [isDragging, setIsDragging] = useState(false);
 
-    // Project Actions Hook
-    const {
-        handleAdd,
-        handleAddFromTemplate: handleAddFromTemplateBase,
-        handleDelete,
-        handleUpdate,
-        handleClearAll,
-    } = useProjectActions(dispatch, selected, setSelected, setShowTemplates, resetProject);
+    const handleWorkspaceReplacement = async (source: Parameters<typeof replace>[0]) => {
+        const outcome = await replace(source);
+        if (outcome.status === "rejected") {
+            toast.error(`Invalid YAML: ${outcome.error}`);
+            return false;
+        }
+        if (outcome.status === "superseded") return false;
+        if (isMobile) setActiveView("diagram");
+        return true;
+    };
 
-    // Wrapper to inject serviceTemplates dependency
-    const handleAddFromTemplate = (templateName: string) => handleAddFromTemplateBase(templateName, serviceTemplates);
+    const handleAdd = async (type: keyof typeof editingResourceKinds) => {
+        const resource = editingResourceKinds[type];
+        const displayType = `${resource.charAt(0).toUpperCase()}${resource.slice(1)}`;
+        const name = await popup.requestText({
+            title: `Add ${resource}`,
+            description: `Choose a name for the new ${resource}.`,
+            label: `${displayType} name`,
+            confirmLabel: "Add",
+        });
+        if (!name) return;
+        if (commit({ type: "add-resource", resource, name }).status === "applied") {
+            setSelected({ type, name: name.trim() });
+        }
+    };
 
-    // Additional handlers
-    const handleExportDiagram = async () => {
-        const svg = document.querySelector<SVGElement>(".mermaid-container svg");
-        if (!svg) return;
-        const svgData = new XMLSerializer().serializeToString(svg);
-        const blob = new Blob([svgData], { type: "image/svg+xml" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "docker-compose-diagram.svg";
-        a.click();
-        URL.revokeObjectURL(url);
+    const handleAddFromTemplate = (templateName: string) => {
+        const template = serviceTemplates[templateName];
+        if (!template) return;
+        const serviceName = template.name || templateName;
+        const outcome = commit({
+            type: "apply-template",
+            serviceName,
+            service: template.config,
+            ...(template.suggestedVolume ? { suggestedVolume: template.suggestedVolume } : {}),
+        });
+        if (outcome.status !== "applied") return;
+        setSelected({ type: "services", name: serviceName });
+        setShowTemplates(false);
+    };
+
+    const handleDelete = async (type: keyof typeof editingResourceKinds, name: string) => {
+        const confirmed = await popup.requestConfirmation({
+            title: `Delete ${name}?`,
+            description: "This action cannot be undone.",
+            confirmLabel: "Delete",
+            tone: "danger",
+        });
+        if (!confirmed) return;
+        commit({ type: "remove-resources", resources: [{ resource: editingResourceKinds[type], name }] });
+        if (selected?.type === type && selected.name === name) setSelected(null);
+    };
+
+    const handleUpdate = (data: Partial<ComposeService> | Partial<ComposeResource>) => {
+        if (!selected) return;
+        commit({
+            type: "update-resource",
+            resource: editingResourceKinds[selected.type],
+            name: selected.name,
+            data,
+        });
+    };
+
+    const handleClearAll = async () => {
+        const confirmed = await popup.requestConfirmation({
+            title: "Clear all configuration?",
+            description: "This action cannot be undone.",
+            confirmLabel: "Clear all",
+            tone: "danger",
+        });
+        if (!confirmed) return;
+        clear();
+        setSelected(null);
+    };
+
+    const handleDiagramContextMenu = (event: ReactMouseEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        setDiagramContextMenu({ x: event.clientX, y: event.clientY });
+    };
+
+    const handleDiagramNodeActivate = (nodeId: string) => {
+        if (["cluster_", "vol_", "sec_", "cfg_", "hp_"].some((prefix) => nodeId.startsWith(prefix))) return;
+        setSelected({ type: "services", name: nodeId });
     };
 
     const handleWhatsNewAction = async (action: AnnouncementAction | undefined) => {
@@ -130,7 +194,7 @@ export default function MainLayout() {
             case "load-example": {
                 const exampleYaml = action.data ? getExample(action.data) : null;
                 if (exampleYaml) {
-                    await handleImport(exampleYaml);
+                    await handleWorkspaceReplacement({ kind: "yaml", yaml: exampleYaml });
                     setActiveView("build");
                 }
                 break;
@@ -144,50 +208,30 @@ export default function MainLayout() {
     const handleTryDemo = async () => {
         const exampleYaml = getExample("profiles-demo");
         if (exampleYaml) {
-            await handleImport(exampleYaml);
+            await handleWorkspaceReplacement({ kind: "yaml", yaml: exampleYaml });
             setActiveView("build");
         }
     };
 
     // Load example from gallery
     const handleLoadExample = async (yaml: string, example?: { id: string }) => {
-        await handleImport(yaml, [], { exampleDir: example?.id || null });
+        await handleWorkspaceReplacement({ kind: "yaml", yaml, exampleDir: example?.id || null });
         setActiveView("build");
         toast.success("Example loaded — explore the architecture!");
     };
 
     // File import handler for EmptyState
     const handleFileImport = async (e: ChangeEvent<HTMLInputElement>) => {
-        const files = Array.from(e.target.files || []).filter(
-            (file) => file.name.endsWith(".yml") || file.name.endsWith(".yaml") || file.name === ".env",
-        );
+        const files = Array.from(e.target.files || []);
         if (files.length === 0) return;
-        const primaryFile =
-            files.find((file) => file.name === "docker-compose.yml" || file.name === "docker-compose.yaml") || files[0];
-        if (!primaryFile) return;
-        const orderedFiles: ImportFile[] = [primaryFile, ...files.filter((file) => file !== primaryFile)];
-        const content = await primaryFile.text();
-        await handleImport(content, orderedFiles);
+        await handleWorkspaceReplacement({ kind: "files", files });
     };
 
     // Drop handler for EmptyState
     const handleFileDrop = async (e: DragEvent<HTMLDivElement>) => {
         e.preventDefault();
         setIsDragging(false);
-        const droppedFiles = await collectDroppedFiles(e.dataTransfer);
-        const files: ImportFile[] = droppedFiles
-            .filter(({ file }) => file.name.endsWith(".yml") || file.name.endsWith(".yaml") || file.name === ".env")
-            .map(({ file, fullPath }) => {
-                if (!fullPath) return file;
-                return { name: file.name, webkitRelativePath: fullPath.replace(/^\//, ""), text: () => file.text() };
-            });
-        if (files.length === 0) return;
-        const primaryFile =
-            files.find((file) => file.name === "docker-compose.yml" || file.name === "docker-compose.yaml") || files[0];
-        if (!primaryFile) return;
-        const orderedFiles: ImportFile[] = [primaryFile, ...files.filter((file) => file !== primaryFile)];
-        const content = await primaryFile.text();
-        await handleImport(content, orderedFiles);
+        await handleWorkspaceReplacement({ kind: "drop", dataTransfer: e.dataTransfer });
     };
 
     // Render the appropriate editor based on selection
@@ -309,13 +353,13 @@ export default function MainLayout() {
                     <div className="undo-redo-group flex gap-1 glass rounded-lg p-1 mr-2">
                         <IconButton
                             icon={Undo2}
-                            onClick={undo}
+                            onClick={() => moveHistory("undo")}
                             title="Undo (Ctrl+Z)"
                             disabled={!canUndo}
                         />
                         <IconButton
                             icon={Redo2}
-                            onClick={redo}
+                            onClick={() => moveHistory("redo")}
                             title="Redo (Ctrl+Shift+Z)"
                             disabled={!canRedo}
                         />
@@ -367,13 +411,6 @@ export default function MainLayout() {
                             <span className="view-btn-text hidden md:inline">Compare</span>
                         </button>
                     </div>
-                    {activeView === "diagram" && (
-                        <IconButton
-                            icon={Download}
-                            onClick={handleExportDiagram}
-                            title="Export Diagram"
-                        />
-                    )}
                 </div>
             </header>
 
@@ -401,9 +438,7 @@ export default function MainLayout() {
                             type="text"
                             placeholder="Project name..."
                             value={state.name || ""}
-                            onChange={(e) =>
-                                dispatch({ type: "SET_STATE", payload: { ...state, name: e.target.value } })
-                            }
+                            onChange={(e) => commit({ type: "set-project-name", name: e.target.value })}
                             className="w-full text-sm"
                         />
                         <button
@@ -502,11 +537,55 @@ export default function MainLayout() {
                         </>
                     ) : (
                         <div className="flex-1 p-4">
-                            <div className="h-full glass rounded-xl overflow-hidden">
-                                <GraphvizDiagram
+                            <div
+                                className="h-full glass rounded-xl overflow-hidden"
+                                onContextMenu={handleDiagramContextMenu}
+                            >
+                                <RenderedArchitectureDiagram
                                     dot={graphvizDot}
-                                    onNodeClick={setSelected}
-                                    onAdd={handleAdd}
+                                    ariaLabel="Docker Compose architecture diagram"
+                                    onNodeActivate={handleDiagramNodeActivate}
+                                    overlay={
+                                        <>
+                                            <div className="absolute top-2 left-2 z-10 text-xs text-text-secondary glass rounded-lg px-3 py-1.5">
+                                                💡 Right-click to add resources
+                                            </div>
+                                            <div className="absolute bottom-4 left-4 z-10 glass rounded-xl p-4 space-y-2">
+                                                <div className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">
+                                                    Legend
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                    <div
+                                                        className="w-8 h-0.5 bg-pink-400"
+                                                        style={{ boxShadow: "0 0 6px #f472b6" }}
+                                                    />
+                                                    <span className="text-sm text-text">Depends On</span>
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                    <div
+                                                        className="w-8 h-0.5 bg-cyan-400 border-dashed"
+                                                        style={{ borderTop: "2px dashed #22d3ee", height: 0 }}
+                                                    />
+                                                    <span className="text-sm text-text">Network</span>
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                    <div
+                                                        className="w-8 h-0.5"
+                                                        style={{ borderTop: "2px dotted #fbbf24" }}
+                                                    />
+                                                    <span className="text-sm text-text">Volume Mount</span>
+                                                </div>
+                                            </div>
+                                            {diagramContextMenu && (
+                                                <ContextMenu
+                                                    x={diagramContextMenu.x}
+                                                    y={diagramContextMenu.y}
+                                                    onClose={() => setDiagramContextMenu(null)}
+                                                    onAdd={(type: ResourceType) => void handleAdd(type)}
+                                                />
+                                            )}
+                                        </>
+                                    }
                                 />
                             </div>
                         </div>
@@ -530,7 +609,7 @@ export default function MainLayout() {
                     View Code
                 </button>
                 <button
-                    onClick={handleExport}
+                    onClick={downloadYaml}
                     className="btn btn-primary shadow-lg glow"
                 >
                     <Download size={18} />
@@ -544,7 +623,7 @@ export default function MainLayout() {
                         <h2 className="text-lg font-semibold">Docker Compose YAML</h2>
                         <div className="flex gap-2">
                             <button
-                                onClick={handleExport}
+                                onClick={downloadYaml}
                                 className="btn btn-primary text-sm py-1.5"
                             >
                                 <Download

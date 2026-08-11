@@ -35,15 +35,9 @@ export type {
     VolumeNode,
 } from "./ComposeAST";
 export type {
-    ComposeAction,
-    ComposeContextValue,
-    ComposeDispatch,
-    ComposeProviderProps,
     ComposeResource,
     ComposeService,
     ComposeState,
-    LoadFilesOverrides,
-    LoadFilesResult,
     ParseComposeResult,
     ParserIssue,
     ParserOptions,

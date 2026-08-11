@@ -1,13 +1,14 @@
 import { useState, useRef, type ChangeEvent, type ReactNode } from "react";
 import { Code, Download, Upload, CheckCircle, X, Eye, Copy, Folder, Check } from "lucide-react";
 import { IconButton, useToast } from "../../components/ui";
-import { useCompose } from "../../hooks/useCompose";
+import { useComposeWorkspace } from "../compose-workspace";
 
 /**
  * YAML code preview with syntax highlighting, line gutter, and edit mode
  */
 export const CodePreview = () => {
-    const { yamlCode, handleExport, loadFiles } = useCompose();
+    const { snapshot, replace, downloadYaml } = useComposeWorkspace();
+    const yamlCode = snapshot.yaml;
     const toast = useToast();
 
     const [editMode, setEditMode] = useState(false);
@@ -109,11 +110,11 @@ export const CodePreview = () => {
 
     const handleSave = async () => {
         try {
-            const result = await loadFiles(editValue);
-            if (result.success) {
+            const result = await replace({ kind: "yaml", yaml: editValue });
+            if (result.status === "accepted") {
                 setEditMode(false);
-            } else {
-                toast.error(`Invalid YAML: ${result.error || "Unknown error"}`);
+            } else if (result.status === "rejected") {
+                toast.error(`Invalid YAML: ${result.error}`);
             }
         } catch (error) {
             console.error("Save failed:", error);
@@ -122,19 +123,12 @@ export const CodePreview = () => {
     };
 
     const handleFileSelect = async (e: ChangeEvent<HTMLInputElement>) => {
-        const files = Array.from(e.target.files || []).filter(
-            (file) => file.name.endsWith(".yml") || file.name.endsWith(".yaml") || file.name === ".env",
-        );
+        const files = Array.from(e.target.files || []);
         if (files.length === 0) return;
-        const primaryFile =
-            files.find((file) => file.name === "docker-compose.yml" || file.name === "docker-compose.yaml") || files[0];
-        if (!primaryFile) return;
-        const orderedFiles = [primaryFile, ...files.filter((file) => file !== primaryFile)];
         try {
-            const content = await primaryFile.text();
-            const result = await loadFiles(content, orderedFiles);
-            if (!result.success) {
-                toast.error(`Invalid YAML: ${result.error || "Unknown error"}`);
+            const result = await replace({ kind: "files", files });
+            if (result.status === "rejected") {
+                toast.error(`Invalid YAML: ${result.error}`);
             }
         } catch (error) {
             console.error("Import failed:", error);
@@ -191,7 +185,7 @@ export const CodePreview = () => {
                             />
                             <IconButton
                                 icon={Download}
-                                onClick={handleExport}
+                                onClick={downloadYaml}
                                 title="Export"
                             />
                             <IconButton

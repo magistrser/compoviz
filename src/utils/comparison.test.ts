@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { compareProjects, getComparisonSummary } from "./comparison";
-import type { ComparisonResult } from "./comparison";
+import type { ComparisonFinding as ComparisonResult } from "../features/project-comparison";
 import { requireValue } from "../test/typeHelpers";
 
 describe("compareProjects", () => {

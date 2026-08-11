@@ -2,7 +2,7 @@ import { normalizeToAST } from "../models/normalizeToAST";
 import { getEffectiveImage, getEffectivePorts, getPrimaryNetwork } from "../models/astQueries";
 import { MountTypes } from "../models/ComposeAST";
 import type { ComposeAST, ServiceNode, ServiceTier } from "../models/ComposeAST";
-import type { ComparisonProject, ComparisonResult } from "./comparison";
+import type { ComparisonFinding as ComparisonResult, ComparisonProject } from "../features/project-comparison";
 
 /**
  * Escape special characters for Graphviz labels
@@ -419,8 +419,8 @@ function getConflictUsages(details: unknown): Array<{ project: string; service: 
 }
 
 export const generateMultiProjectGraphviz = (
-    projects: ComparisonProject[],
-    conflicts: ComparisonResult[] = [],
+    projects: readonly ComparisonProject[],
+    conflicts: readonly ComparisonResult[] = [],
 ): string => {
     if (!projects || projects.length === 0) {
         return `digraph G { bgcolor="transparent" empty [label="No projects"] }`;

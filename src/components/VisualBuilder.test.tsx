@@ -4,7 +4,7 @@ import { fireEvent, render, screen, waitFor, within } from "../test/utils";
 import { Suspense, type DragEventHandler, type PropsWithChildren, type ReactNode } from "react";
 import type { Edge, Node, OnBeforeDelete } from "@xyflow/react";
 import VisualBuilder from "./VisualBuilder";
-import { useCompose } from "../hooks/useCompose";
+import { useComposeWorkspace } from "../features/compose-workspace";
 
 // Mock React Flow
 vi.mock("@xyflow/react", () => ({
@@ -66,7 +66,8 @@ vi.mock("@xyflow/react", () => ({
 }));
 
 const ComposeProbe = () => {
-    const { state } = useCompose();
+    const { snapshot } = useComposeWorkspace();
+    const { state } = snapshot;
     const serviceNames = Object.keys(state.services);
 
     return (

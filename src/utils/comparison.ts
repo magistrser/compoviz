@@ -1,20 +1,7 @@
 import { normalizeToAST } from "../models/normalizeToAST";
-import type { ComposeDocument } from "../models/composeTypes";
+import type { ComparisonFinding, ComparisonProject } from "../features/project-comparison/types";
 
-export interface ComparisonProject {
-    id: string;
-    name: string;
-    content: ComposeDocument;
-}
-
-export interface ComparisonResult {
-    type: "conflict" | "shared";
-    category: "port" | "volume" | "network" | "container_name" | "service_name" | "env_file";
-    severity: "error" | "warning" | "info";
-    message: string;
-    projects: string[];
-    details: unknown;
-}
+export type ComparisonResult = ComparisonFinding;
 
 interface ResourceUsage {
     project: string;
@@ -114,7 +101,7 @@ export const extractHostPort = (portMapping: unknown): string | null => {
  * @param {Array<{id: string, name: string, content: object}>} projects
  * @returns {ComparisonResult[]}
  */
-export function compareProjects(projects: ComparisonProject[]): ComparisonResult[] {
+export function compareProjects(projects: readonly ComparisonProject[]): ComparisonResult[] {
     const results: ComparisonResult[] = [];
     if (!projects || projects.length < 2) return results;
 

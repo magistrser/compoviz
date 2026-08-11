@@ -1,3 +1,4 @@
 // Diagram components and utilities
-export { GraphvizDiagram } from "./GraphvizDiagram";
+export { RenderedArchitectureDiagram } from "./RenderedArchitectureDiagram";
+export type { RenderedArchitectureDiagramProps } from "./RenderedArchitectureDiagram";
 export { ContextMenu } from "./ContextMenu";

@@ -1,7 +1,7 @@
 import { Server, Network, Database, Key, FileText, Plus, Trash2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Badge, IconButton } from "../../components/ui";
-import { useCompose } from "../../hooks/useCompose";
+import { useComposeWorkspace } from "../compose-workspace";
 import { useUI } from "../../context/UIContext";
 import type { ResourceSelection, ResourceType } from "../../context/UIContext";
 
@@ -19,7 +19,8 @@ export const ResourceTree = ({
     onDelete: (type: ResourceType, name: string) => void;
 }) => {
     // Get compose state from context
-    const { state, errors } = useCompose();
+    const { snapshot } = useComposeWorkspace();
+    const { state, issues: errors } = snapshot;
     // Get UI state from context
     const { selected, searchTerm } = useUI();
 

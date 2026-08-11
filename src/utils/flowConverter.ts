@@ -1,9 +1,8 @@
-import { normalizeDependsOn, normalizeArray } from "./validation";
 import { getSuggestionCounts, getHighestSeverity } from "./suggestions";
 import { normalizeToAST } from "../models/normalizeToAST";
 import { MountTypes } from "../models/ComposeAST";
-import type { Connection, Edge, Node } from "@xyflow/react";
-import type { ComposeDispatch, ComposeState, Suggestion } from "../models/composeTypes";
+import type { Edge, Node } from "@xyflow/react";
+import type { ComposeState, Suggestion } from "../models/composeTypes";
 
 /**
  * Converts compose state to React Flow nodes and edges.
@@ -225,105 +224,4 @@ export function stateToFlow(state: ComposeState, suggestions: Suggestion[] = [])
 export function parseNodeId(nodeId: string): { type: string; name: string } {
     const [type, ...nameParts] = nodeId.split("-");
     return { type: type ?? "", name: nameParts.join("-") };
-}
-
-/**
- * Handle edge connection - dispatch appropriate action
- */
-export function handleEdgeConnect(connection: Connection, state: ComposeState, dispatch: ComposeDispatch): boolean {
-    if (!connection.source || !connection.target) return false;
-    const source = parseNodeId(connection.source);
-    const target = parseNodeId(connection.target);
-
-    // Service → Service = depends_on
-    if (source.type === "service" && target.type === "service") {
-        const service = state.services[target.name];
-        const currentDeps = normalizeDependsOn(service?.depends_on);
-        if (!currentDeps.includes(source.name)) {
-            dispatch({
-                type: "UPDATE_SERVICE",
-                name: target.name,
-                data: { depends_on: [...currentDeps, source.name] },
-            });
-        }
-        return true;
-    }
-
-    // Service → Network = join network
-    if (source.type === "service" && target.type === "network") {
-        const service = state.services[source.name];
-        const currentNets = normalizeArray(service?.networks);
-        if (!currentNets.includes(target.name)) {
-            dispatch({
-                type: "UPDATE_SERVICE",
-                name: source.name,
-                data: { networks: [...currentNets, target.name] },
-            });
-        }
-        return true;
-    }
-
-    // Service → Volume = mount volume
-    if (source.type === "service" && target.type === "volume") {
-        const service = state.services[source.name];
-        const currentVols = normalizeArray(service?.volumes);
-        const newMount = `${target.name}:/data/${target.name}`;
-        if (!currentVols.some((v) => v.startsWith(`${target.name}:`))) {
-            dispatch({
-                type: "UPDATE_SERVICE",
-                name: source.name,
-                data: { volumes: [...currentVols, newMount] },
-            });
-        }
-        return true;
-    }
-
-    return false;
-}
-
-/**
- * Handle edge deletion - dispatch appropriate action
- */
-export function handleEdgeDelete(edge: Edge, state: ComposeState, dispatch: ComposeDispatch): boolean {
-    const [edgeType] = edge.id.split("-");
-    const source = parseNodeId(edge.source);
-    const target = parseNodeId(edge.target);
-
-    if (edgeType === "dep") {
-        // Remove dependency
-        const service = state.services[target.name];
-        const currentDeps = normalizeDependsOn(service?.depends_on);
-        dispatch({
-            type: "UPDATE_SERVICE",
-            name: target.name,
-            data: { depends_on: currentDeps.filter((d) => d !== source.name) },
-        });
-        return true;
-    }
-
-    if (edgeType === "net") {
-        // Remove from network
-        const service = state.services[source.name];
-        const currentNets = normalizeArray(service?.networks);
-        dispatch({
-            type: "UPDATE_SERVICE",
-            name: source.name,
-            data: { networks: currentNets.filter((n) => n !== target.name) },
-        });
-        return true;
-    }
-
-    if (edgeType === "vol") {
-        // Remove volume mount
-        const service = state.services[source.name];
-        const currentVols = normalizeArray(service?.volumes);
-        dispatch({
-            type: "UPDATE_SERVICE",
-            name: source.name,
-            data: { volumes: currentVols.filter((v) => !v.startsWith(`${target.name}:`)) },
-        });
-        return true;
-    }
-
-    return false;
 }

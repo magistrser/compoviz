@@ -21,10 +21,12 @@ import { nodeTypes } from "./nodes";
 import { edgeTypes } from "./edges";
 import BuilderToolbar from "./BuilderToolbar";
 import NodeConfigPanel from "./NodeConfigPanel";
-import { stateToFlow, handleEdgeConnect, handleEdgeDelete, parseNodeId } from "../utils/flowConverter";
+import { stateToFlow, parseNodeId } from "../utils/flowConverter";
 import { mergeFlowElements } from "../utils/objectUtils";
 import { Download, Lightbulb, LightbulbOff } from "lucide-react";
-import { useCompose } from "../hooks/useCompose";
+import { useComposeWorkspace } from "../features/compose-workspace";
+import { useComposeEditing } from "../features/compose-editing";
+import type { ComposeRelationshipChange } from "../features/compose-editing";
 import { useUI } from "../context/UIContext";
 import { usePopup } from "./ui";
 import type { ResourceType } from "../context/UIContext";
@@ -62,14 +64,48 @@ function isBuilderNodeType(value: string): value is BuilderNodeType {
     return value in pluralResourceTypes;
 }
 
+function relationshipForConnection(connection: Connection): ComposeRelationshipChange | null {
+    if (!connection.source || !connection.target) return null;
+    const source = parseNodeId(connection.source);
+    const target = parseNodeId(connection.target);
+    if (source.type === "service" && target.type === "service") {
+        return { action: "connect", relationship: "depends-on", service: target.name, target: source.name };
+    }
+    if (source.type === "service" && target.type === "network") {
+        return { action: "connect", relationship: "network", service: source.name, target: target.name };
+    }
+    if (source.type === "service" && target.type === "volume") {
+        return { action: "connect", relationship: "volume", service: source.name, target: target.name };
+    }
+    return null;
+}
+
+function relationshipForEdge(edge: Edge): ComposeRelationshipChange | null {
+    const [edgeType] = edge.id.split("-");
+    const source = parseNodeId(edge.source);
+    const target = parseNodeId(edge.target);
+    if (edgeType === "dep") {
+        return { action: "disconnect", relationship: "depends-on", service: target.name, target: source.name };
+    }
+    if (edgeType === "net") {
+        return { action: "disconnect", relationship: "network", service: source.name, target: target.name };
+    }
+    if (edgeType === "vol") {
+        return { action: "disconnect", relationship: "volume", service: source.name, target: target.name };
+    }
+    return null;
+}
+
 /**
  * Visual Builder component using React Flow for interactive compose creation.
  * Allows drag-and-drop creation and connection of Docker resources.
  * Now includes NodeConfigPanel for full configuration of each node.
  */
 export default function VisualBuilder() {
-    // Get compose state from context
-    const { state, dispatch, suggestions = [] } = useCompose();
+    const { snapshot } = useComposeWorkspace();
+    const { state } = snapshot;
+    const suggestions = useMemo(() => [...snapshot.suggestions], [snapshot.suggestions]);
+    const { commit } = useComposeEditing();
     const { suggestionsEnabled, setSuggestionsEnabled } = useUI();
     const popup = usePopup();
     const reactFlowWrapper = useRef<HTMLDivElement>(null);
@@ -78,72 +114,28 @@ export default function VisualBuilder() {
 
     const addResource = useCallback(
         (type: ResourceType, name: string, position?: Position) => {
-            const positionData = position ? { position } : {};
-            switch (type) {
-                case "services":
-                    dispatch({ type: "ADD_SERVICE", name, ...positionData });
-                    break;
-                case "networks":
-                    dispatch({ type: "ADD_NETWORK", name, ...positionData });
-                    break;
-                case "volumes":
-                    dispatch({ type: "ADD_VOLUME", name, ...positionData });
-                    break;
-                case "secrets":
-                    dispatch({ type: "ADD_SECRET", name, ...positionData });
-                    break;
-                case "configs":
-                    dispatch({ type: "ADD_CONFIG", name, ...positionData });
-                    break;
-            }
+            commit({
+                type: "add-resource",
+                resource: singularResourceTypes[type],
+                name,
+                ...(position ? { position } : {}),
+            });
         },
-        [dispatch],
+        [commit],
     );
 
     const updateResource = useCallback(
         (type: BuilderNodeType, name: string, data: Record<string, unknown>) => {
-            switch (type) {
-                case "service":
-                    dispatch({ type: "UPDATE_SERVICE", name, data });
-                    break;
-                case "network":
-                    dispatch({ type: "UPDATE_NETWORK", name, data });
-                    break;
-                case "volume":
-                    dispatch({ type: "UPDATE_VOLUME", name, data });
-                    break;
-                case "secret":
-                    dispatch({ type: "UPDATE_SECRET", name, data });
-                    break;
-                case "config":
-                    dispatch({ type: "UPDATE_CONFIG", name, data });
-                    break;
-            }
+            commit({ type: "update-resource", resource: type, name, data });
         },
-        [dispatch],
+        [commit],
     );
 
     const handleDeleteResource = useCallback(
         (type: BuilderNodeType, name: string) => {
-            switch (type) {
-                case "service":
-                    dispatch({ type: "DELETE_SERVICE", name });
-                    break;
-                case "network":
-                    dispatch({ type: "DELETE_NETWORK", name });
-                    break;
-                case "volume":
-                    dispatch({ type: "DELETE_VOLUME", name });
-                    break;
-                case "secret":
-                    dispatch({ type: "DELETE_SECRET", name });
-                    break;
-                case "config":
-                    dispatch({ type: "DELETE_CONFIG", name });
-                    break;
-            }
+            commit({ type: "remove-resources", resources: [{ resource: type, name }] });
         },
-        [dispatch],
+        [commit],
     );
 
     // Handle window resize for mobile detection
@@ -179,9 +171,10 @@ export default function VisualBuilder() {
     // Handle new edge connections
     const onConnect = useCallback(
         (connection: Connection) => {
-            handleEdgeConnect(connection, state, dispatch);
+            const relationship = relationshipForConnection(connection);
+            if (relationship) commit({ type: "change-relationships", changes: [relationship] });
         },
-        [state, dispatch],
+        [commit],
     );
 
     // Handle node click - open config panel
@@ -206,11 +199,12 @@ export default function VisualBuilder() {
     // Handle edge deletion
     const onEdgesDelete = useCallback(
         (deletedEdges: Edge[]) => {
-            for (const edge of deletedEdges) {
-                handleEdgeDelete(edge, state, dispatch);
-            }
+            const changes = deletedEdges
+                .map(relationshipForEdge)
+                .filter((change): change is ComposeRelationshipChange => change !== null);
+            if (changes.length > 0) commit({ type: "change-relationships", changes });
         },
-        [state, dispatch],
+        [commit],
     );
 
     // Confirm node deletion before React Flow removes controlled canvas state
@@ -237,15 +231,17 @@ export default function VisualBuilder() {
     // Apply node deletion after React Flow's pre-delete confirmation succeeds
     const onNodesDelete = useCallback(
         (deletedNodes: Node[]) => {
-            for (const node of deletedNodes) {
-                const { type, name } = parseNodeId(node.id);
-                if (!isBuilderNodeType(type)) continue;
-                handleDeleteResource(type, name);
-            }
+            const resources = deletedNodes
+                .map((node) => parseNodeId(node.id))
+                .filter((resource): resource is { type: BuilderNodeType; name: string } =>
+                    isBuilderNodeType(resource.type),
+                )
+                .map(({ type, name }) => ({ resource: type, name }));
+            if (resources.length > 0) commit({ type: "remove-resources", resources });
 
             if (selectedNode && deletedNodes.some((node) => node.id === selectedNode.id)) setSelectedNode(null);
         },
-        [handleDeleteResource, selectedNode],
+        [commit, selectedNode],
     );
 
     // Handle node drag stop - persist position
@@ -253,9 +249,9 @@ export default function VisualBuilder() {
         (_event, node) => {
             const { type, name } = parseNodeId(node.id);
             if (!isBuilderNodeType(type)) return;
-            updateResource(type, name, { _position: node.position });
+            commit({ type: "position-resource", resource: type, name, position: node.position });
         },
-        [updateResource],
+        [commit],
     );
 
     // Handle drop from toolbar
@@ -348,20 +344,12 @@ export default function VisualBuilder() {
         (newName: string) => {
             if (!selectedNode) return;
             const { type, name } = selectedNode;
-            // For now, we need to transfer data manually (since reducer doesn't have RENAME for all types)
-            // Get current data
-            const stateKey = pluralResourceTypes[type];
-            const currentData = state[stateKey]?.[name];
-            if (currentData) {
-                // Delete old
-                addResource(stateKey, newName);
-                updateResource(type, newName, currentData);
-                handleDeleteResource(type, name);
-
+            const outcome = commit({ type: "rename-resource", resource: type, oldName: name, newName });
+            if (outcome.status === "applied") {
                 setSelectedNode({ type, name: newName, id: `${type}-${newName}` });
             }
         },
-        [selectedNode, state, addResource, updateResource, handleDeleteResource],
+        [commit, selectedNode],
     );
 
     // Export diagram as SVG

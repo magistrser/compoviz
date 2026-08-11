@@ -1,6 +1,3 @@
-import type { Dispatch, ReactNode } from "react";
-import type { ComposeAST } from "./ComposeAST";
-
 export interface Position {
     x: number;
     y: number;
@@ -138,27 +135,6 @@ export interface ComposeState extends ComposeDocument {
 
 export type ComposeStateSection = Exclude<keyof ComposeState, "name">;
 
-export type ComposeAction =
-    | { type: "SET_STATE"; payload?: unknown }
-    | { type: "ADD_SERVICE"; name: string; position?: Position }
-    | { type: "UPDATE_SERVICE"; name: string; data: Partial<ComposeService> }
-    | { type: "DELETE_SERVICE"; name: string }
-    | { type: "RENAME_SERVICE"; oldName: string; newName: string }
-    | { type: "ADD_NETWORK"; name: string; position?: Position }
-    | { type: "UPDATE_NETWORK"; name: string; data: Partial<ComposeResource> }
-    | { type: "DELETE_NETWORK"; name: string }
-    | { type: "ADD_VOLUME"; name: string; position?: Position }
-    | { type: "UPDATE_VOLUME"; name: string; data: Partial<ComposeResource> }
-    | { type: "DELETE_VOLUME"; name: string }
-    | { type: "ADD_SECRET"; name: string; position?: Position }
-    | { type: "UPDATE_SECRET"; name: string; data: Partial<ComposeResource> }
-    | { type: "DELETE_SECRET"; name: string }
-    | { type: "ADD_CONFIG"; name: string; position?: Position }
-    | { type: "UPDATE_CONFIG"; name: string; data: Partial<ComposeResource> }
-    | { type: "DELETE_CONFIG"; name: string };
-
-export type ComposeDispatch = Dispatch<ComposeAction>;
-
 export interface ParserIssue {
     type: string;
     message: string;
@@ -198,27 +174,6 @@ export interface ParserWorkerClient {
     terminate: () => void;
 }
 
-export interface LoadFilesOverrides {
-    fileMap?: Record<string, string>;
-    environment?: Record<string, string>;
-    activeProfiles?: string[];
-    exampleDir?: string | null;
-}
-
-export interface ImportFile {
-    name: string;
-    webkitRelativePath?: string;
-    text: () => Promise<string>;
-}
-
-export interface LoadFilesResult {
-    success: boolean;
-    fallback?: boolean;
-    profiles?: string[];
-    undefinedVariables?: string[];
-    error?: string;
-}
-
 export interface ValidationIssue {
     type: "error" | "warning";
     entity: string;
@@ -246,35 +201,4 @@ export interface Suggestion {
     name: string;
     message: string;
     action: SuggestionAction | null;
-}
-
-export interface ComposeContextValue {
-    state: ComposeState;
-    ast: ComposeAST;
-    yamlCode: string;
-    errors: ValidationIssue[];
-    suggestions: Suggestion[];
-    profiles: string[];
-    activeProfiles: string[];
-    profileCounts: Record<string, number>;
-    environment: Record<string, string>;
-    variables: string[];
-    undefinedVariables: string[];
-    parserErrors: ParserIssue[];
-    dispatch: ComposeDispatch;
-    undo: () => void;
-    redo: () => void;
-    canUndo: boolean;
-    canRedo: boolean;
-    loadFiles: (content: string, files?: ImportFile[], overrides?: LoadFilesOverrides) => Promise<LoadFilesResult>;
-    resetProject: () => void;
-    handleExport: () => void;
-    handleYamlChange: (newYaml: string) => Promise<void>;
-    setActiveProfiles: (profiles: string[]) => Promise<void>;
-    updateEnvironment: (key: string, value: string | null) => Promise<void>;
-    setEnvironment: (environment: Record<string, string>) => Promise<void>;
-}
-
-export interface ComposeProviderProps {
-    children: ReactNode;
 }
