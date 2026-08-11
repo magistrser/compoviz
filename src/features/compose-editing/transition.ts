@@ -122,7 +122,12 @@ function serializeDependencies(
     if (normalizedEntries.every(([, config]) => Object.keys(config).length === 0)) {
         return normalizedEntries.map(([name]) => name);
     }
-    return Object.fromEntries(normalizedEntries);
+    return Object.fromEntries(
+        normalizedEntries.map(([name, config]) => [
+            name,
+            Object.keys(config).length === 0 ? { condition: DependencyConditions.STARTED } : config,
+        ]),
+    );
 }
 
 function updateDependencies(

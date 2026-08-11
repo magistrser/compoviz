@@ -219,6 +219,46 @@ describe("useComposeEditing", () => {
         expect(result.current.workspace.snapshot.state.services.api?.depends_on).toEqual([]);
     });
 
+    it("preserves simple dependencies when adding a conditioned dependency", () => {
+        const { result } = renderHook(() => ({ editing: useComposeEditing(), workspace: useComposeWorkspace() }), {
+            wrapper,
+        });
+        act(() => {
+            result.current.editing.commit({ type: "add-resource", resource: "service", name: "api" });
+            result.current.editing.commit({ type: "add-resource", resource: "service", name: "backend" });
+            result.current.editing.commit({ type: "add-resource", resource: "service", name: "db" });
+        });
+        act(() => {
+            result.current.editing.commit({
+                type: "update-resource",
+                resource: "service",
+                name: "api",
+                data: { depends_on: ["backend"] },
+            });
+        });
+        act(() => {
+            result.current.editing.commit({
+                type: "change-relationships",
+                changes: [
+                    {
+                        action: "connect",
+                        relationship: "depends-on",
+                        service: "api",
+                        target: "db",
+                        condition: DependencyConditions.HEALTHY,
+                    },
+                ],
+            });
+        });
+
+        expect(result.current.workspace.snapshot.state.services.api?.depends_on).toEqual({
+            backend: { condition: DependencyConditions.STARTED },
+            db: { condition: DependencyConditions.HEALTHY },
+        });
+        expect(result.current.workspace.snapshot.yaml).toContain("backend:\n        condition: service_started");
+        expect(result.current.workspace.snapshot.yaml).toContain("db:\n        condition: service_healthy");
+    });
+
     it("changes one dependency condition while preserving sibling configuration", () => {
         const { result } = renderHook(() => ({ editing: useComposeEditing(), workspace: useComposeWorkspace() }), {
             wrapper,
