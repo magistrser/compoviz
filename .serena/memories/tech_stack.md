@@ -5,3 +5,4 @@
 - Styling: SCSS. Global tokens/reset/utilities live in `src/styles/global.scss`; component styles are colocated SCSS.
 - Tests: Vitest 4 in happy-dom, Testing Library, and Fast Check property tests.
 - Production: Vite static bundle served by static-only nginx with SPA fallback; GitLab CI, GitHub Actions/GHCR, Docker Compose, and Vercel are supported.
+- GitHub Pages: `.github/workflows/pages.yml` builds with `VITE_BASE_PATH=/compoviz/` and disabled Vercel Analytics, then deploys `dist/`; root-hosted builds retain the default `/` base.

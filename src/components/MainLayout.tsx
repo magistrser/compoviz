@@ -52,6 +52,8 @@ const editingResourceKinds = {
     configs: "config",
 } as const satisfies Record<string, ComposeResourceKind>;
 
+const logoUrl = `${import.meta.env.BASE_URL}logo.png`;
+
 // Lazy load the Visual Builder (React Flow) - only loads when user clicks Build tab
 const VisualBuilder = lazy(() => import("./VisualBuilder"));
 
@@ -321,7 +323,7 @@ export default function MainLayout() {
                     </button>
                     <div className="flex items-center gap-2">
                         <img
-                            src="/logo.png"
+                            src={logoUrl}
                             alt="Compoviz Logo"
                             className="w-8 h-8 rounded-lg object-cover"
                         />

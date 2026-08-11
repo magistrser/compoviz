@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from ".";
 
 vi.mock("@vercel/analytics/react", () => ({
@@ -7,9 +7,21 @@ vi.mock("@vercel/analytics/react", () => ({
 }));
 
 describe("App", () => {
+    beforeEach(() => {
+        window.history.replaceState({}, "", "/");
+    });
+
     it("retains the configured Vercel analytics integration", () => {
         render(<App />);
 
         expect(screen.getByTestId("vercel-analytics")).toBeInTheDocument();
+    });
+
+    it("renders the workspace beneath a repository-scoped deployment path", async () => {
+        window.history.replaceState({}, "", "/compoviz/");
+
+        render(<App basename="/compoviz/" />);
+
+        expect(await screen.findByRole("heading", { name: "Compoviz" })).toBeInTheDocument();
     });
 });

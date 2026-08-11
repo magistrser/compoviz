@@ -7,9 +7,13 @@ import { AppRoutes } from "./router";
 
 const vercelAnalyticsEnabled = import.meta.env.VITE_DISABLE_VERCEL_ANALYTICS !== "true";
 
-export default function App() {
+interface AppProps {
+    basename?: string;
+}
+
+export default function App({ basename = import.meta.env.BASE_URL }: AppProps) {
     return (
-        <BrowserRouter>
+        <BrowserRouter basename={basename}>
             <UIProvider>
                 <ComposeWorkspaceProvider>
                     <PopupProvider>
