@@ -65,7 +65,7 @@ jobs:
             - name: Extract version from package.json
               id: package-version
               run: |
-                  VERSION=$(yarn node -p "require('./package.json').version")
+                  VERSION=$(node -p "require('./package.json').version")
                   echo "version=$VERSION" >> $GITHUB_OUTPUT
                   echo "📦 Using Package version: $VERSION"
 
