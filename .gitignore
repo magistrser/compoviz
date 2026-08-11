@@ -36,3 +36,6 @@ fixtures/
 
 # AI-generated project docs
 CLAUDE.md
+
+# Browser test artifacts
+.artifacts/
