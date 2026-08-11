@@ -1,20 +1,35 @@
 import { memo } from "react";
-import { BaseEdge, getBezierPath, type Edge, type EdgeProps } from "@xyflow/react";
+import { BaseEdge, type Edge, type EdgeProps } from "@xyflow/react";
+import { getRoundedOrthogonalPath, type OrthogonalEdgeRoutingData } from "./orthogonalPath";
 
 /**
  * Custom edge for network membership.
  * Dashed cyan line.
  */
 const NetworkEdge = memo(
-    ({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, selected }: EdgeProps<Edge>) => {
-        const [edgePath] = getBezierPath({
-            sourceX,
-            sourceY,
-            targetX,
-            targetY,
-            sourcePosition,
-            targetPosition,
-        });
+    ({
+        id,
+        sourceX,
+        sourceY,
+        targetX,
+        targetY,
+        sourcePosition,
+        targetPosition,
+        data,
+        selected,
+    }: EdgeProps<Edge<OrthogonalEdgeRoutingData>>) => {
+        const [edgePath] = getRoundedOrthogonalPath(
+            {
+                sourceX,
+                sourceY,
+                targetX,
+                targetY,
+                sourcePosition,
+                targetPosition,
+            },
+            "network",
+            data?.routing,
+        );
 
         return (
             <BaseEdge

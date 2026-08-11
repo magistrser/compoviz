@@ -92,6 +92,8 @@ export function stateToFlow(
                 id: `dep-${name}-${dep.service}`,
                 source: `service-${dep.service}`,
                 target: `service-${name}`,
+                sourceHandle: "deps-out",
+                targetHandle: "deps-in",
                 type: "dependsOnEdge",
                 data: { condition: dep.condition },
                 animated: true,
@@ -104,6 +106,8 @@ export function stateToFlow(
                 id: `net-${name}-${net.network}`,
                 source: `service-${name}`,
                 target: `network-${net.network}`,
+                sourceHandle: "network-out",
+                targetHandle: "network-in",
                 type: "networkEdge",
             });
         }
@@ -115,6 +119,8 @@ export function stateToFlow(
                     id: `vol-${name}-${vol.source}`,
                     source: `service-${name}`,
                     target: `volume-${vol.source}`,
+                    sourceHandle: "volume-out",
+                    targetHandle: "volume-in",
                     type: "volumeEdge",
                     data: { mountPath: vol.target },
                 });

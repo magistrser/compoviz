@@ -2438,6 +2438,8 @@ textarea::placeholder {
 }
 .service-node {
     border-color: #6e9fff66;
+    width: 240px;
+    min-height: 150px;
 }
 @supports (color: color-mix(in lab, red, red)) {
     .service-node {
@@ -2486,9 +2488,9 @@ textarea::placeholder {
     border-radius: 50%;
     justify-content: center;
     align-items: center;
-    width: 100px;
-    min-width: 100px;
-    height: 100px;
+    width: 120px;
+    min-width: 120px;
+    height: 120px;
     display: flex;
 }
 .network-node:hover,
@@ -2511,7 +2513,8 @@ textarea::placeholder {
 }
 .volume-node {
     border-radius: 8px 8px 20px 20px;
-    min-width: 100px;
+    width: 180px;
+    min-height: 100px;
 }
 .volume-node:hover,
 .volume-node.selected {
@@ -2533,7 +2536,8 @@ textarea::placeholder {
 }
 .secret-node {
     border-radius: 12px;
-    min-width: 100px;
+    width: 180px;
+    min-height: 100px;
 }
 .secret-node:hover,
 .secret-node.selected {
@@ -2555,7 +2559,8 @@ textarea::placeholder {
 }
 .config-node {
     border-radius: 12px;
-    min-width: 100px;
+    width: 180px;
+    min-height: 100px;
 }
 .config-node:hover,
 .config-node.selected {
@@ -2650,8 +2655,48 @@ textarea::placeholder {
     background: var(--color-accent) !important;
     border-color: var(--color-accent) !important;
 }
-.handle-right {
+.builder-node .handle-deps-in {
+    left: -6px;
+    top: 50%;
+    --relationship-color: #e06c9a;
+}
+.builder-node .handle-deps-out {
     right: -6px;
+    top: 25%;
+    --relationship-color: #e06c9a;
+}
+.builder-node .handle-network-out {
+    right: -6px;
+    top: 50%;
+    --relationship-color: #56d4dd;
+}
+.builder-node .handle-volume-out {
+    right: -6px;
+    top: 75%;
+    --relationship-color: #eab354;
+}
+.builder-node .handle-network-in {
+    left: -6px;
+    top: 50%;
+    --relationship-color: #56d4dd;
+}
+.builder-node .handle-volume-in {
+    left: -6px;
+    top: 50%;
+    --relationship-color: #eab354;
+}
+.builder-node .relationship-handle {
+    background: var(--relationship-color) !important;
+    border-color: var(--color-surface) !important;
+    box-shadow: 0 0 0 1px var(--relationship-color);
+}
+.builder-node .relationship-handle:hover {
+    background: var(--relationship-color) !important;
+    border-color: var(--color-surface) !important;
+}
+.react-flow__edge-path {
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 .edge-label {
     padding-inline: calc(var(--spacing) * 2);
@@ -2761,6 +2806,18 @@ textarea::placeholder {
 .builder-action-btn:hover {
     color: var(--color-accent);
     background: var(--color-surface-raised);
+}
+.builder-action-btn:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+}
+.builder-action-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+}
+.builder-action-btn:disabled:hover {
+    color: var(--color-text-secondary);
+    background: transparent;
 }
 .builder-action-btn.has-suggestions {
     color: var(--color-warning);

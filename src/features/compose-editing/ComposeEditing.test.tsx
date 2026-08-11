@@ -245,4 +245,76 @@ describe("useComposeEditing", () => {
         act(() => result.current.editing.moveHistory("undo"));
         expect(result.current.workspace.snapshot.state.services.worker?._position).toBeUndefined();
     });
+
+    it("positions every builder resource in one idempotent undoable transition", () => {
+        const { result } = renderHook(() => ({ editing: useComposeEditing(), workspace: useComposeWorkspace() }), {
+            wrapper,
+        });
+        act(() => {
+            result.current.editing.commit({ type: "add-resource", resource: "service", name: "api" });
+            result.current.editing.commit({ type: "add-resource", resource: "network", name: "backend" });
+            result.current.editing.commit({ type: "add-resource", resource: "volume", name: "data" });
+            result.current.editing.commit({ type: "add-resource", resource: "secret", name: "token" });
+            result.current.editing.commit({ type: "add-resource", resource: "config", name: "settings" });
+        });
+
+        const positions = [
+            { resource: "service" as const, name: "api", position: { x: 0, y: 0 } },
+            { resource: "network" as const, name: "backend", position: { x: 300, y: 0 } },
+            { resource: "volume" as const, name: "data", position: { x: 300, y: 150 } },
+            { resource: "secret" as const, name: "token", position: { x: 0, y: 300 } },
+            { resource: "config" as const, name: "settings", position: { x: 300, y: 300 } },
+        ];
+        let firstOutcome: ReturnType<typeof result.current.editing.commit> | undefined;
+        let repeatedOutcome: ReturnType<typeof result.current.editing.commit> | undefined;
+        act(() => {
+            firstOutcome = result.current.editing.commit({ type: "position-resources", positions });
+            repeatedOutcome = result.current.editing.commit({ type: "position-resources", positions });
+        });
+
+        expect(firstOutcome).toEqual({ status: "applied" });
+        expect(repeatedOutcome).toEqual({ status: "unchanged" });
+        expect(result.current.workspace.snapshot.state.services.api?._position).toEqual({ x: 0, y: 0 });
+        expect(result.current.workspace.snapshot.state.networks.backend?._position).toEqual({ x: 300, y: 0 });
+        expect(result.current.workspace.snapshot.state.volumes.data?._position).toEqual({ x: 300, y: 150 });
+        expect(result.current.workspace.snapshot.state.secrets.token?._position).toEqual({ x: 0, y: 300 });
+        expect(result.current.workspace.snapshot.state.configs.settings?._position).toEqual({ x: 300, y: 300 });
+
+        act(() => result.current.editing.moveHistory("undo"));
+        expect(result.current.workspace.snapshot.state.services.api?._position).toBeUndefined();
+        expect(result.current.workspace.snapshot.state.networks.backend?._position).toBeUndefined();
+        expect(result.current.workspace.snapshot.state.volumes.data?._position).toBeUndefined();
+        expect(result.current.workspace.snapshot.state.secrets.token?._position).toBeUndefined();
+        expect(result.current.workspace.snapshot.state.configs.settings?._position).toBeUndefined();
+
+        act(() => result.current.editing.moveHistory("redo"));
+        expect(result.current.workspace.snapshot.state.services.api?._position).toEqual({ x: 0, y: 0 });
+        expect(result.current.workspace.snapshot.state.configs.settings?._position).toEqual({ x: 300, y: 300 });
+    });
+
+    it("rejects an entire generated placement when any target is stale", () => {
+        const { result } = renderHook(() => ({ editing: useComposeEditing(), workspace: useComposeWorkspace() }), {
+            wrapper,
+        });
+        act(() => {
+            result.current.editing.commit({ type: "add-resource", resource: "service", name: "api" });
+        });
+
+        let outcome: ReturnType<typeof result.current.editing.commit> | undefined;
+        act(() => {
+            outcome = result.current.editing.commit({
+                type: "position-resources",
+                positions: [
+                    { resource: "service", name: "api", position: { x: 0, y: 0 } },
+                    { resource: "network", name: "removed", position: { x: 300, y: 0 } },
+                ],
+            });
+        });
+
+        expect(outcome).toEqual({ status: "rejected", reason: "missing-resource" });
+        expect(result.current.workspace.snapshot.state.services.api?._position).toBeUndefined();
+
+        act(() => result.current.editing.moveHistory("undo"));
+        expect(result.current.workspace.snapshot.state.services.api).toBeUndefined();
+    });
 });

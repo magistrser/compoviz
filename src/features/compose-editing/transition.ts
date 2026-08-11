@@ -212,6 +212,25 @@ export function applyComposeEdit(current: ComposeState, edit: ComposeEdit): Tran
                 name: edit.name,
                 data: { _position: edit.position },
             });
+        case "position-resources": {
+            for (const position of edit.positions) {
+                if (!resourceMap(current, position.resource)[position.name]) {
+                    return { status: "rejected", reason: "missing-resource" };
+                }
+            }
+
+            let next = current;
+            for (const position of edit.positions) {
+                const values = resourceMap(next, position.resource);
+                const existing = values[position.name];
+                if (!existing) return { status: "rejected", reason: "missing-resource" };
+                next = withResourceMap(next, position.resource, {
+                    ...values,
+                    [position.name]: { ...existing, _position: position.position },
+                });
+            }
+            return finish(current, next);
+        }
         case "apply-template": {
             const name = edit.serviceName.trim();
             if (!hasValidName(name)) return { status: "rejected", reason: "invalid-name" };

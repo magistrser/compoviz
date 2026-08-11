@@ -18,8 +18,8 @@ const NetworkNode = memo(({ data, selected }: NodeProps<Node<NetworkNodeData>>) 
             <Handle
                 type="target"
                 position={Position.Left}
-                className="builder-handle node-handle-hidden"
-                id="services"
+                className="builder-handle relationship-handle handle-network-in"
+                id="network-in"
             />
 
             <div className="node-content">

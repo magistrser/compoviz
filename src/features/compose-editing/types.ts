@@ -7,6 +7,10 @@ export interface ComposeResourceReference {
     readonly name: string;
 }
 
+export interface ComposeResourcePosition extends ComposeResourceReference {
+    readonly position: Position;
+}
+
 export interface ComposeRelationshipChange {
     readonly action: "connect" | "disconnect";
     readonly relationship: "depends-on" | "network" | "volume";
@@ -43,6 +47,10 @@ export type ComposeEdit =
           readonly resource: ComposeResourceKind;
           readonly name: string;
           readonly position: Position;
+      }
+    | {
+          readonly type: "position-resources";
+          readonly positions: readonly ComposeResourcePosition[];
       }
     | {
           readonly type: "apply-template";

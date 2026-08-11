@@ -19,14 +19,16 @@ import "@xyflow/react/dist/style.css";
 
 import { nodeTypes } from "./nodes";
 import { edgeTypes } from "./edges";
+import { routingObstaclesForNodes } from "./edges/orthogonalPath";
 import BuilderToolbar from "./BuilderToolbar";
 import NodeConfigPanel from "./NodeConfigPanel";
 import { stateToFlow, parseNodeId } from "../utils/flowConverter";
+import { layoutBuilderGraph } from "../utils/builderLayout";
 import { mergeFlowElements } from "../utils/objectUtils";
-import { Download, Lightbulb, LightbulbOff } from "lucide-react";
+import { Brush, Download, Lightbulb, LightbulbOff } from "lucide-react";
 import { useComposeWorkspace } from "../features/compose-workspace";
 import { useComposeEditing } from "../features/compose-editing";
-import type { ComposeRelationshipChange } from "../features/compose-editing";
+import type { ComposeRelationshipChange, ComposeResourcePosition } from "../features/compose-editing";
 import { useUI } from "../context/UIContext";
 import { usePopup } from "./ui";
 import type { ResourceType } from "../context/UIContext";
@@ -159,6 +161,23 @@ export default function VisualBuilder() {
 
     const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+
+    const routingObstacles = useMemo(() => routingObstaclesForNodes(nodes), [nodes]);
+    const routedEdges = useMemo(
+        () =>
+            edges.map((edge) => ({
+                ...edge,
+                data: {
+                    ...edge.data,
+                    routing: {
+                        obstacles: routingObstacles,
+                        sourceNodeId: edge.source,
+                        targetNodeId: edge.target,
+                    },
+                },
+            })),
+        [edges, routingObstacles],
+    );
 
     // Sync nodes when state changes externally
     React.useEffect(() => {
@@ -367,6 +386,27 @@ export default function VisualBuilder() {
         URL.revokeObjectURL(url);
     }, []);
 
+    const handleCleanLayout = useCallback(() => {
+        if (nodes.length === 0 || !reactFlowInstance) return;
+
+        const laidOutNodes = layoutBuilderGraph(nodes, edges);
+        const positions: ComposeResourcePosition[] = [];
+        for (const node of laidOutNodes) {
+            const { type, name } = parseNodeId(node.id);
+            if (!isBuilderNodeType(type)) continue;
+            positions.push({ resource: type, name, position: node.position });
+        }
+        if (positions.length === 0) return;
+
+        const outcome = commit({ type: "position-resources", positions });
+        if (outcome.status === "rejected") return;
+
+        setNodes(laidOutNodes);
+        window.requestAnimationFrame(() => {
+            void reactFlowInstance.fitView({ padding: 0.2, duration: 300 });
+        });
+    }, [commit, edges, nodes, reactFlowInstance, setNodes]);
+
     // Mini-map node color
     const nodeColor = useCallback((node: Node) => {
         const colors: Record<string, string> = {
@@ -394,7 +434,7 @@ export default function VisualBuilder() {
             >
                 <ReactFlow
                     nodes={nodes}
-                    edges={edges}
+                    edges={routedEdges}
                     onNodesChange={onNodesChange}
                     onEdgesChange={onEdgesChange}
                     onConnect={onConnect}
@@ -411,6 +451,7 @@ export default function VisualBuilder() {
                     nodeTypes={nodeTypes}
                     edgeTypes={edgeTypes}
                     fitView
+                    minZoom={0.1}
                     snapToGrid
                     snapGrid={[15, 15]}
                     deleteKeyCode={["Backspace", "Delete"]}
@@ -452,6 +493,16 @@ export default function VisualBuilder() {
                     {/* Top-right actions */}
                     <Panel position="top-right">
                         <div className="builder-actions">
+                            <button
+                                type="button"
+                                onClick={handleCleanLayout}
+                                className="builder-action-btn"
+                                title="Clean layout"
+                                aria-label="Clean layout"
+                                disabled={nodes.length === 0 || !reactFlowInstance}
+                            >
+                                <Brush size={16} />
+                            </button>
                             <button
                                 onClick={() => setSuggestionsEnabled(!suggestionsEnabled)}
                                 className={`builder-action-btn ${suggestions.length > 0 ? "has-suggestions" : ""}`}

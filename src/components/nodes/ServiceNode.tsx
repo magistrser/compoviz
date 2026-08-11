@@ -5,7 +5,7 @@ import { getServiceIcon, renderServiceIcon } from "../../utils/iconUtils";
 
 /**
  * Service node — shows image, ports, restart policy, health, network count.
- * Handles hidden at rest, visible on hover.
+ * Relationship terminals stay visible and color-coded so different wire types fan out clearly.
  */
 interface ServiceNodeData extends Record<string, unknown> {
     name: string;
@@ -51,8 +51,8 @@ const ServiceNode = memo(({ data, selected }: NodeProps<Node<ServiceNodeData>>) 
         <div className={`builder-node service-node node-animate ${selected ? "selected" : ""}`}>
             <Handle
                 type="target"
-                position={Position.Top}
-                className="builder-handle node-handle-hidden"
+                position={Position.Left}
+                className="builder-handle relationship-handle handle-deps-in"
                 id="deps-in"
             />
 
@@ -136,15 +136,24 @@ const ServiceNode = memo(({ data, selected }: NodeProps<Node<ServiceNodeData>>) 
 
             <Handle
                 type="source"
-                position={Position.Bottom}
-                className="builder-handle node-handle-hidden"
+                position={Position.Right}
+                className="builder-handle relationship-handle handle-deps-out"
                 id="deps-out"
+                style={{ top: "25%" }}
             />
             <Handle
                 type="source"
                 position={Position.Right}
-                className="builder-handle handle-right node-handle-hidden"
-                id="resources"
+                className="builder-handle relationship-handle handle-network-out"
+                id="network-out"
+                style={{ top: "50%" }}
+            />
+            <Handle
+                type="source"
+                position={Position.Right}
+                className="builder-handle relationship-handle handle-volume-out"
+                id="volume-out"
+                style={{ top: "75%" }}
             />
         </div>
     );

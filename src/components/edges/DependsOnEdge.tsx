@@ -1,11 +1,12 @@
 import { memo } from "react";
-import { BaseEdge, EdgeLabelRenderer, getBezierPath, type Edge, type EdgeProps } from "@xyflow/react";
+import { BaseEdge, EdgeLabelRenderer, type Edge, type EdgeProps } from "@xyflow/react";
+import { getRoundedOrthogonalPath, type OrthogonalEdgeRoutingData } from "./orthogonalPath";
 
 /**
  * Custom edge for depends_on relationships.
  * Animated solid line with condition label.
  */
-interface DependsOnData extends Record<string, unknown> {
+interface DependsOnData extends OrthogonalEdgeRoutingData {
     condition?: string;
 }
 
@@ -21,14 +22,18 @@ const DependsOnEdge = memo(
         data,
         selected,
     }: EdgeProps<Edge<DependsOnData>>) => {
-        const [edgePath, labelX, labelY] = getBezierPath({
-            sourceX,
-            sourceY,
-            targetX,
-            targetY,
-            sourcePosition,
-            targetPosition,
-        });
+        const [edgePath, labelX, labelY] = getRoundedOrthogonalPath(
+            {
+                sourceX,
+                sourceY,
+                targetX,
+                targetY,
+                sourcePosition,
+                targetPosition,
+            },
+            "dependency",
+            data?.routing,
+        );
 
         const condition = data?.condition || "service_started";
         const shortCondition = condition.replace("service_", "");

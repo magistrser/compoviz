@@ -1,0 +1,84 @@
+import { Position, type BaseEdgeProps, type EdgeProps } from "@xyflow/react";
+import type * as ReactFlowModule from "@xyflow/react";
+import type { PropsWithChildren } from "react";
+import { describe, expect, it, vi } from "vitest";
+import { render, screen } from "../../test/utils";
+import DependsOnEdge from "./DependsOnEdge";
+import NetworkEdge from "./NetworkEdge";
+import VolumeEdge from "./VolumeEdge";
+
+vi.mock("@xyflow/react", async (importOriginal) => {
+    const actual = await importOriginal<typeof ReactFlowModule>();
+    return {
+        ...actual,
+        BaseEdge: ({ id, path, className, style }: BaseEdgeProps) => (
+            <svg>
+                <path
+                    data-testid={`edge-${id}`}
+                    d={path}
+                    className={className}
+                    style={style}
+                />
+            </svg>
+        ),
+        EdgeLabelRenderer: ({ children }: PropsWithChildren) => <>{children}</>,
+    };
+});
+
+const edgeProps = (id: string): EdgeProps => ({
+    id,
+    source: "service-api",
+    target: "service-db",
+    sourceX: 0,
+    sourceY: 0,
+    targetX: 300,
+    targetY: 150,
+    sourcePosition: Position.Right,
+    targetPosition: Position.Left,
+});
+
+const expectOrthogonalPath = (id: string) => {
+    const path = screen.getByTestId(`edge-${id}`);
+    expect(path.getAttribute("d")).toContain("Q");
+    expect(path.getAttribute("d")).not.toContain("C");
+    return path;
+};
+
+describe("builder relationship edges", () => {
+    it("keeps dependency labels and selected styling on a rounded orthogonal path", () => {
+        render(
+            <DependsOnEdge
+                {...edgeProps("dependency")}
+                data={{ condition: "service_healthy" }}
+                selected
+            />,
+        );
+
+        const path = expectOrthogonalPath("dependency");
+        expect(path).toHaveClass("depends-on-edge", "selected");
+        expect(path).toHaveStyle({ stroke: "#E06C9A", strokeWidth: 3 });
+        expect(screen.getByText("healthy")).toHaveClass("depends-on-label");
+    });
+
+    it("keeps the network dash pattern on a rounded orthogonal path", () => {
+        render(<NetworkEdge {...edgeProps("network")} />);
+
+        const path = expectOrthogonalPath("network");
+        expect(path).toHaveClass("network-edge");
+        expect(path).toHaveStyle({ stroke: "#56D4DD", strokeDasharray: "5 3" });
+    });
+
+    it("keeps volume labels and dash pattern on a rounded orthogonal path", () => {
+        render(
+            <VolumeEdge
+                {...edgeProps("volume")}
+                data={{ mountPath: "/var/lib/api" }}
+            />,
+        );
+
+        const path = expectOrthogonalPath("volume");
+        expect(path).toHaveClass("volume-edge");
+        expect(path).toHaveStyle({ stroke: "#EAB354", strokeDasharray: "2 2" });
+        expect(screen.getByText("/var/lib/api")).toHaveClass("volume-label");
+    });
+});

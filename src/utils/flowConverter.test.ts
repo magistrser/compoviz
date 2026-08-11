@@ -34,5 +34,23 @@ describe("stateToFlow", () => {
             ]),
         );
         expect(flow.edges.map((edge) => edge.id)).toEqual(["dep-api-db", "net-api-backend", "vol-api-data"]);
+        expect(flow.edges).toEqual([
+            expect.objectContaining({
+                id: "dep-api-db",
+                sourceHandle: "deps-out",
+                targetHandle: "deps-in",
+                animated: true,
+            }),
+            expect.objectContaining({
+                id: "net-api-backend",
+                sourceHandle: "network-out",
+                targetHandle: "network-in",
+            }),
+            expect.objectContaining({
+                id: "vol-api-data",
+                sourceHandle: "volume-out",
+                targetHandle: "volume-in",
+            }),
+        ]);
     });
 });

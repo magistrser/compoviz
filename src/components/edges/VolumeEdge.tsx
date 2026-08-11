@@ -1,11 +1,12 @@
 import { memo } from "react";
-import { BaseEdge, EdgeLabelRenderer, getBezierPath, type Edge, type EdgeProps } from "@xyflow/react";
+import { BaseEdge, EdgeLabelRenderer, type Edge, type EdgeProps } from "@xyflow/react";
+import { getRoundedOrthogonalPath, type OrthogonalEdgeRoutingData } from "./orthogonalPath";
 
 /**
  * Custom edge for volume mounts.
  * Dotted amber line with mount path label.
  */
-interface VolumeEdgeData extends Record<string, unknown> {
+interface VolumeEdgeData extends OrthogonalEdgeRoutingData {
     mountPath?: string;
 }
 
@@ -21,14 +22,18 @@ const VolumeEdge = memo(
         data,
         selected,
     }: EdgeProps<Edge<VolumeEdgeData>>) => {
-        const [edgePath, labelX, labelY] = getBezierPath({
-            sourceX,
-            sourceY,
-            targetX,
-            targetY,
-            sourcePosition,
-            targetPosition,
-        });
+        const [edgePath, labelX, labelY] = getRoundedOrthogonalPath(
+            {
+                sourceX,
+                sourceY,
+                targetX,
+                targetY,
+                sourcePosition,
+                targetPosition,
+            },
+            "volume",
+            data?.routing,
+        );
 
         const mountPath = data?.mountPath;
 

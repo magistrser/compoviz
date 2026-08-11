@@ -18,8 +18,8 @@ const VolumeNode = memo(({ data, selected }: NodeProps<Node<VolumeNodeData>>) =>
             <Handle
                 type="target"
                 position={Position.Left}
-                className="builder-handle node-handle-hidden"
-                id="services"
+                className="builder-handle relationship-handle handle-volume-in"
+                id="volume-in"
             />
 
             <div className="node-content">

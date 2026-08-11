@@ -5,5 +5,6 @@ export type {
     ComposeEditOutcome,
     ComposeRelationshipChange,
     ComposeResourceKind,
+    ComposeResourcePosition,
     ComposeResourceReference,
 } from "./types";
