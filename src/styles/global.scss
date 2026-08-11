@@ -2035,6 +2035,9 @@ input::placeholder,
 textarea::placeholder {
     color: var(--color-text-tertiary);
 }
+.header-search input {
+    padding-left: calc(var(--spacing) * 9);
+}
 .btn {
     border-radius: var(--radius-lg);
     padding-inline: calc(var(--spacing) * 4);
@@ -2419,6 +2422,7 @@ textarea::placeholder {
     background: var(--color-surface) !important;
     border: 1px solid var(--color-border) !important;
     border-radius: 8px !important;
+    bottom: 93px !important;
 }
 .builder-node {
     border-radius: var(--radius-xl);
@@ -2475,6 +2479,17 @@ textarea::placeholder {
 }
 .service-header .node-icon {
     color: var(--color-service);
+}
+.service-header .node-icon,
+.service-header .suggestion-badge {
+    flex-shrink: 0;
+}
+.service-header .node-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 .network-node {
     border-color: #3dd68c66;
@@ -3262,6 +3277,7 @@ textarea::placeholder {
     .builder-minimap {
         width: 80px !important;
         height: 60px !important;
+        bottom: 15px !important;
     }
     .builder-toolbar {
         padding: 0.5rem;
