@@ -279,8 +279,10 @@ export default function VisualBuilder() {
         [chooseDependencyCondition],
     );
 
-    const onEdgeDoubleClick = useCallback(
-        (_event: React.MouseEvent, edge: Edge) => {
+    const onEdgeContextMenu = useCallback(
+        (event: React.MouseEvent, edge: Edge) => {
+            if (!dependencyForEdge(edge)) return;
+            event.preventDefault();
             editDependencyEdge(edge);
         },
         [editDependencyEdge],
@@ -545,7 +547,7 @@ export default function VisualBuilder() {
                     onConnect={onConnect}
                     onNodeClick={onNodeClick}
                     onNodeDoubleClick={onNodeDoubleClick}
-                    onEdgeDoubleClick={onEdgeDoubleClick}
+                    onEdgeContextMenu={onEdgeContextMenu}
                     onBeforeDelete={onBeforeDelete}
                     onNodesDelete={onNodesDelete}
                     onEdgesDelete={onEdgesDelete}

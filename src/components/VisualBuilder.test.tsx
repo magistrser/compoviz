@@ -28,6 +28,7 @@ vi.mock("@xyflow/react", () => ({
         onNodesDelete,
         onConnect,
         onEdgeDoubleClick,
+        onEdgeContextMenu,
         onEdgesDelete,
         minZoom,
     }: {
@@ -43,6 +44,7 @@ vi.mock("@xyflow/react", () => ({
         onNodesDelete?: (nodes: Node[]) => void;
         onConnect?: (connection: Connection) => void;
         onEdgeDoubleClick?: (event: ReactMouseEvent, edge: Edge) => void;
+        onEdgeContextMenu?: (event: ReactMouseEvent, edge: Edge) => void;
         onEdgesDelete?: (edges: Edge[]) => void;
         minZoom?: number;
     }) => {
@@ -119,6 +121,7 @@ vi.mock("@xyflow/react", () => ({
                     className={dependencyEdge ? "react-flow__edge selected" : ""}
                     data-id={dependencyEdge?.id}
                     onDoubleClick={(event) => dependencyEdge && onEdgeDoubleClick?.(event, dependencyEdge)}
+                    onContextMenu={(event) => dependencyEdge && onEdgeContextMenu?.(event, dependencyEdge)}
                 >
                     Edit dependency edge
                 </button>
@@ -425,7 +428,7 @@ describe("VisualBuilder Component", () => {
         expect(screen.getByLabelText("Rendered dependency condition")).toBeEmptyDOMElement();
     });
 
-    it("changes an existing dependency condition by double-clicking its edge", async () => {
+    it("changes an existing dependency condition by right-clicking its edge", async () => {
         const user = userEvent.setup();
         renderBuilder();
         await addService(user, "api");
@@ -441,6 +444,8 @@ describe("VisualBuilder Component", () => {
         await user.click(edge);
         expect(screen.queryByRole("dialog", { name: "Dependency condition" })).not.toBeInTheDocument();
         await user.dblClick(edge);
+        expect(screen.queryByRole("dialog", { name: "Dependency condition" })).not.toBeInTheDocument();
+        expect(fireEvent.contextMenu(edge)).toBe(false);
 
         dialog = screen.getByRole("dialog", { name: "Dependency condition" });
         expect(within(dialog).getByRole("radio", { name: "Started" })).toBeChecked();

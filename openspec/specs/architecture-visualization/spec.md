@@ -213,8 +213,13 @@ The system SHALL let users choose `service_started`, `service_healthy`, or `serv
 
 #### Scenario: Open an existing dependency condition
 
-- **WHEN** a user double-clicks an existing dependency edge or presses Enter while that edge is selected
+- **WHEN** a user right-clicks an existing dependency edge or presses Enter while that edge is selected
 - **THEN** the system presents the condition popup with that edge's current condition selected
+
+#### Scenario: Double-click an existing dependency
+
+- **WHEN** a user double-clicks an existing dependency edge
+- **THEN** the system does not present the condition popup
 
 #### Scenario: Change an existing dependency condition
 
