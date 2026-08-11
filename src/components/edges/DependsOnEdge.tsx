@@ -1,10 +1,11 @@
 import { memo } from "react";
-import { BaseEdge, EdgeLabelRenderer, type Edge, type EdgeProps } from "@xyflow/react";
+import { BaseEdge, type Edge, type EdgeProps } from "@xyflow/react";
+import { getDependencyConditionVisual } from "./dependencyConditionVisuals";
 import { getRoundedOrthogonalPath, type OrthogonalEdgeRoutingData } from "./orthogonalPath";
 
 /**
  * Custom edge for depends_on relationships.
- * Animated solid line with condition label.
+ * Animated solid line colored by dependency condition.
  */
 interface DependsOnData extends OrthogonalEdgeRoutingData {
     condition?: string;
@@ -22,7 +23,7 @@ const DependsOnEdge = memo(
         data,
         selected,
     }: EdgeProps<Edge<DependsOnData>>) => {
-        const [edgePath, labelX, labelY] = getRoundedOrthogonalPath(
+        const [edgePath] = getRoundedOrthogonalPath(
             {
                 sourceX,
                 sourceY,
@@ -35,33 +36,18 @@ const DependsOnEdge = memo(
             data?.routing,
         );
 
-        const condition = data?.condition || "service_started";
-        const shortCondition = condition.replace("service_", "");
+        const conditionVisual = getDependencyConditionVisual(data?.condition);
 
         return (
-            <>
-                <BaseEdge
-                    id={id}
-                    path={edgePath}
-                    className={`depends-on-edge ${selected ? "selected" : ""}`}
-                    style={{
-                        stroke: "#E06C9A",
-                        strokeWidth: selected ? 3 : 2,
-                    }}
-                />
-                <EdgeLabelRenderer>
-                    <div
-                        className="edge-label depends-on-label"
-                        style={{
-                            position: "absolute",
-                            transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
-                            pointerEvents: "all",
-                        }}
-                    >
-                        {shortCondition}
-                    </div>
-                </EdgeLabelRenderer>
-            </>
+            <BaseEdge
+                id={id}
+                path={edgePath}
+                className={`depends-on-edge ${selected ? "selected" : ""}`}
+                style={{
+                    stroke: conditionVisual.color,
+                    strokeWidth: selected ? 3 : 2,
+                }}
+            />
         );
     },
 );

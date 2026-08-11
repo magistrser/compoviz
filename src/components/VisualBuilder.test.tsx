@@ -166,6 +166,19 @@ describe("VisualBuilder Component", () => {
         expect(panels.length).toBeGreaterThan(0);
     });
 
+    it("groups dependency conditions in the connection types legend", () => {
+        renderBuilder();
+
+        const connectionTypes = screen.getByRole("region", { name: "Connection Types" });
+        const dependsOn = within(connectionTypes).getByRole("region", { name: "Depends On" });
+
+        expect(within(dependsOn).getByText("Started")).toBeInTheDocument();
+        expect(within(dependsOn).getByText("Healthy")).toBeInTheDocument();
+        expect(within(dependsOn).getByText("Completed successfully")).toBeInTheDocument();
+        expect(within(connectionTypes).getByText("Network")).toBeInTheDocument();
+        expect(within(connectionTypes).getByText("Volume")).toBeInTheDocument();
+    });
+
     it("exposes resource starters as keyboard controls", () => {
         renderBuilder();
 

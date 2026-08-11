@@ -1,6 +1,11 @@
 export { default as DependsOnEdge } from "./DependsOnEdge";
 export { default as NetworkEdge } from "./NetworkEdge";
 export { default as VolumeEdge } from "./VolumeEdge";
+export {
+    DEPENDENCY_CONDITION_VISUALS,
+    getDependencyConditionVisual,
+    type DependencyConditionVisual,
+} from "./dependencyConditionVisuals";
 
 import DependsOnEdge from "./DependsOnEdge";
 import NetworkEdge from "./NetworkEdge";

@@ -18,7 +18,7 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import { nodeTypes } from "./nodes";
-import { edgeTypes } from "./edges";
+import { DEPENDENCY_CONDITION_VISUALS, edgeTypes } from "./edges";
 import { routingObstaclesForNodes } from "./edges/orthogonalPath";
 import BuilderToolbar from "./BuilderToolbar";
 import NodeConfigPanel from "./NodeConfigPanel";
@@ -526,21 +526,69 @@ export default function VisualBuilder() {
 
                     {/* Bottom legend */}
                     <Panel position="bottom-left">
-                        <div className="builder-legend">
-                            <div className="legend-title">Connection Types</div>
-                            <div className="legend-item">
-                                <div className="legend-line depends-on"></div>
-                                <span>Depends On</span>
-                            </div>
-                            <div className="legend-item">
-                                <div className="legend-line network"></div>
-                                <span>Network</span>
-                            </div>
-                            <div className="legend-item">
-                                <div className="legend-line volume"></div>
-                                <span>Volume</span>
-                            </div>
-                        </div>
+                        <section
+                            className="builder-legend connection-legend"
+                            aria-labelledby="connection-types-title"
+                        >
+                            <h2
+                                id="connection-types-title"
+                                className="legend-title"
+                            >
+                                Connection Types
+                            </h2>
+                            <section
+                                className="legend-group"
+                                aria-labelledby="depends-on-title"
+                            >
+                                <h3
+                                    id="depends-on-title"
+                                    className="legend-group-title"
+                                >
+                                    Depends On
+                                </h3>
+                                <ul className="legend-list">
+                                    {DEPENDENCY_CONDITION_VISUALS.map((visual) => (
+                                        <li
+                                            key={visual.condition}
+                                            className="legend-item dependency-condition-item"
+                                        >
+                                            <span
+                                                className="legend-line dependency"
+                                                style={{
+                                                    backgroundColor: visual.color,
+                                                    color: visual.color,
+                                                }}
+                                                aria-hidden="true"
+                                            />
+                                            <span>{visual.label}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </section>
+                            <div
+                                className="legend-divider"
+                                aria-hidden="true"
+                            />
+                            <ul
+                                className="legend-list legend-primary-list"
+                                aria-label="Other connection types"
+                            >
+                                <li className="legend-item">
+                                    <span
+                                        className="legend-line network"
+                                        aria-hidden="true"
+                                    />
+                                    <span>Network</span>
+                                </li>
+                                <li className="legend-item">
+                                    <span
+                                        className="legend-line volume"
+                                        aria-hidden="true"
+                                    />
+                                    <span>Volume</span>
+                                </li>
+                            </ul>
+                        </section>
                     </Panel>
 
                     {/* Help hint */}

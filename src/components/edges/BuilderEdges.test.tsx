@@ -45,19 +45,35 @@ const expectOrthogonalPath = (id: string) => {
 };
 
 describe("builder relationship edges", () => {
-    it("keeps dependency labels and selected styling on a rounded orthogonal path", () => {
+    it.each([
+        ["service_started", "#E06C9A"],
+        ["service_healthy", "#C084FC"],
+        ["service_completed_successfully", "#818CF8"],
+    ])("colors %s dependencies without an inline label", (condition, stroke) => {
+        const { container } = render(
+            <DependsOnEdge
+                {...edgeProps(condition)}
+                data={{ condition }}
+            />,
+        );
+
+        const path = expectOrthogonalPath(condition);
+        expect(path).toHaveClass("depends-on-edge");
+        expect(path).toHaveStyle({ stroke, strokeWidth: 2 });
+        expect(container.querySelector(".depends-on-label")).not.toBeInTheDocument();
+    });
+
+    it("falls back to a started dependency and keeps selected emphasis", () => {
         render(
             <DependsOnEdge
-                {...edgeProps("dependency")}
-                data={{ condition: "service_healthy" }}
+                {...edgeProps("dependency-fallback")}
                 selected
             />,
         );
 
-        const path = expectOrthogonalPath("dependency");
+        const path = expectOrthogonalPath("dependency-fallback");
         expect(path).toHaveClass("depends-on-edge", "selected");
         expect(path).toHaveStyle({ stroke: "#E06C9A", strokeWidth: 3 });
-        expect(screen.getByText("healthy")).toHaveClass("depends-on-label");
     });
 
     it("keeps the network dash pattern on a rounded orthogonal path", () => {

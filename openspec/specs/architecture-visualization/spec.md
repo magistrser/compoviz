@@ -125,7 +125,7 @@ The system SHALL provide an accessible `Clean layout` action in the Build view t
 
 ### Requirement: Route builder relationships orthogonally
 
-The system SHALL render dependency, network, and volume relationships in the Build view as horizontal and vertical line segments joined by rounded 90-degree corners. Orthogonal routing SHALL preserve each relationship type's semantic stroke, dash pattern, label, selection state, and animation behavior. Each relationship type SHALL attach through a dedicated type-specific terminal and use a stable type-specific routing lane offset. Differently colored relationship types SHALL NOT share coincident straight runs. A relationship path SHALL NOT enter the interior rectangle of any unrelated resource block, and SHALL recalculate from the current block rectangles when positions change.
+The system SHALL render dependency, network, and volume relationships in the Build view as horizontal and vertical line segments joined by rounded 90-degree corners. Orthogonal routing SHALL preserve each relationship type's semantic stroke, dash pattern, applicable label, selection state, and animation behavior. Dependency conditions SHALL use distinct coordinated stroke colors without inline condition labels, and the Connection Types legend SHALL group human-readable keys for every supported condition under Depends On. Each relationship type SHALL attach through a dedicated type-specific terminal and use a stable type-specific routing lane offset. Differently colored relationship types SHALL NOT share coincident straight runs. A relationship path SHALL NOT enter the interior rectangle of any unrelated resource block, and SHALL recalculate from the current block rectangles when positions change.
 
 #### Scenario: Render supported relationship types
 
@@ -140,7 +140,12 @@ The system SHALL render dependency, network, and volume relationships in the Bui
 #### Scenario: Preserve relationship meaning
 
 - **WHEN** orthogonal edges are displayed or selected
-- **THEN** their existing colors, dash patterns, labels, selection emphasis, and applicable animation continue to distinguish relationship types
+- **THEN** their colors, dash patterns, applicable non-dependency labels, selection emphasis, and applicable animation continue to distinguish relationship types
+
+#### Scenario: Distinguish dependency conditions
+
+- **WHEN** the Build view displays service-started, service-healthy, or service-completed-successfully dependencies
+- **THEN** each condition uses its documented distinct line color without condition text on the wire, and the Connection Types legend identifies all three colors under Depends On
 
 #### Scenario: Fan out different relationship types from one service
 
