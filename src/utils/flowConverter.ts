@@ -3,6 +3,7 @@ import { MountTypes } from "../models/ComposeAST";
 import type { Edge, Node } from "@xyflow/react";
 import type { ComposeAST } from "../models/ComposeAST";
 import type { Position, Suggestion } from "../models/composeTypes";
+import { BUILDER_INPUT_POSITION, BUILDER_OUTPUT_POSITION } from "./builderConnectionGeometry";
 
 function positionFromRaw(value: unknown): Position | null {
     if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
@@ -70,6 +71,8 @@ export function stateToFlow(
             id: `service-${name}`,
             type: "serviceNode",
             position,
+            sourcePosition: BUILDER_OUTPUT_POSITION,
+            targetPosition: BUILDER_INPUT_POSITION,
             data: {
                 name,
                 image: service.image,
@@ -104,8 +107,8 @@ export function stateToFlow(
         for (const net of service.networks) {
             edges.push({
                 id: `net-${name}-${net.network}`,
-                source: `service-${name}`,
-                target: `network-${net.network}`,
+                source: `network-${net.network}`,
+                target: `service-${name}`,
                 sourceHandle: "network-out",
                 targetHandle: "network-in",
                 type: "networkEdge",
@@ -117,8 +120,8 @@ export function stateToFlow(
             if (vol.type === MountTypes.VOLUME && ast.volumeMap.has(vol.source)) {
                 edges.push({
                     id: `vol-${name}-${vol.source}`,
-                    source: `service-${name}`,
-                    target: `volume-${vol.source}`,
+                    source: `volume-${vol.source}`,
+                    target: `service-${name}`,
                     sourceHandle: "volume-out",
                     targetHandle: "volume-in",
                     type: "volumeEdge",
@@ -146,6 +149,8 @@ export function stateToFlow(
             id: `network-${name}`,
             type: "networkNode",
             position,
+            sourcePosition: BUILDER_OUTPUT_POSITION,
+            targetPosition: BUILDER_INPUT_POSITION,
             data: {
                 name,
                 driver: network.driver,
@@ -173,6 +178,8 @@ export function stateToFlow(
             id: `volume-${name}`,
             type: "volumeNode",
             position,
+            sourcePosition: BUILDER_OUTPUT_POSITION,
+            targetPosition: BUILDER_INPUT_POSITION,
             data: {
                 name,
                 driver: volume.driver,
@@ -197,6 +204,8 @@ export function stateToFlow(
             id: `secret-${name}`,
             type: "secretNode",
             position,
+            sourcePosition: BUILDER_OUTPUT_POSITION,
+            targetPosition: BUILDER_INPUT_POSITION,
             data: {
                 name,
                 file: secret.file,
@@ -219,6 +228,8 @@ export function stateToFlow(
             id: `config-${name}`,
             type: "configNode",
             position,
+            sourcePosition: BUILDER_OUTPUT_POSITION,
+            targetPosition: BUILDER_INPUT_POSITION,
             data: {
                 name,
                 file: config.file,

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import { fireEvent, render, screen, waitFor, within } from "../test/utils";
 import { Suspense, useState, type DragEventHandler, type PropsWithChildren, type ReactNode } from "react";
-import type { Edge, Node, OnBeforeDelete } from "@xyflow/react";
+import type { Connection, Edge, Node, OnBeforeDelete } from "@xyflow/react";
 import VisualBuilder from "./VisualBuilder";
 import { useComposeWorkspace } from "../features/compose-workspace";
 import { useComposeEditing } from "../features/compose-editing";
@@ -19,6 +19,8 @@ vi.mock("@xyflow/react", () => ({
         onInit,
         onBeforeDelete,
         onNodesDelete,
+        onConnect,
+        onEdgesDelete,
         minZoom,
     }: {
         children?: ReactNode;
@@ -31,6 +33,8 @@ vi.mock("@xyflow/react", () => ({
         }) => void;
         onBeforeDelete?: OnBeforeDelete<Node, Edge>;
         onNodesDelete?: (nodes: Node[]) => void;
+        onConnect?: (connection: Connection) => void;
+        onEdgesDelete?: (edges: Edge[]) => void;
         minZoom?: number;
     }) => (
         <div
@@ -61,6 +65,33 @@ vi.mock("@xyflow/react", () => ({
             >
                 Delete selected flow nodes
             </button>
+            <button
+                onClick={() =>
+                    onConnect?.({
+                        source: "network-backend",
+                        target: "service-api",
+                        sourceHandle: "network-out",
+                        targetHandle: "network-in",
+                    })
+                }
+            >
+                Connect network input
+            </button>
+            <button
+                onClick={() =>
+                    onEdgesDelete?.([
+                        {
+                            id: "net-api-backend",
+                            source: "network-backend",
+                            target: "service-api",
+                            sourceHandle: "network-out",
+                            targetHandle: "network-in",
+                        },
+                    ])
+                }
+            >
+                Disconnect network input
+            </button>
             {children}
         </div>
     ),
@@ -69,6 +100,7 @@ vi.mock("@xyflow/react", () => ({
     MiniMap: () => <div data-testid="minimap" />,
     Panel: ({ children }: PropsWithChildren) => <div data-testid="panel">{children}</div>,
     BackgroundVariant: { Dots: "dots" },
+    Position: { Left: "left", Right: "right", Top: "top", Bottom: "bottom" },
     useNodesState: (initial: Node[]) => {
         const [nodes, setNodes] = useState(initial);
         return [nodes, setNodes, vi.fn()];
@@ -90,6 +122,9 @@ const ComposeProbe = () => {
             <output aria-label="Builder services">{serviceNames.join(",")}</output>
             <output aria-label="Builder service position">
                 {JSON.stringify(serviceNames[0] ? state.services[serviceNames[0]]?._position : null)}
+            </output>
+            <output aria-label="Builder service networks">
+                {JSON.stringify(serviceNames[0] ? (state.services[serviceNames[0]]?.networks ?? []) : [])}
             </output>
             <button onClick={() => moveHistory("undo")}>Undo builder history</button>
         </>
@@ -246,6 +281,10 @@ describe("VisualBuilder Component", () => {
         await user.click(cleanLayout);
         expect(screen.getByLabelText("Builder service position")).toHaveTextContent(firstPosition ?? "");
         await waitFor(() => expect(fitViewMock).toHaveBeenCalledTimes(2));
+        expect(fitViewMock).toHaveBeenLastCalledWith({
+            padding: { top: "160px", right: "120px", bottom: "300px", left: "80px" },
+            duration: 300,
+        });
 
         await user.click(screen.getByRole("button", { name: "Undo builder history" }));
         expect(screen.getByLabelText("Builder service position")).toBeEmptyDOMElement();
@@ -265,6 +304,27 @@ describe("VisualBuilder Component", () => {
             expect(screen.getByLabelText("Builder services")).toHaveTextContent("api");
             expect(screen.getByRole("heading", { name: "api" })).toBeInTheDocument();
         });
+    });
+
+    it("connects and removes a network input from the resource output to the service input", async () => {
+        const user = userEvent.setup();
+        renderBuilder();
+
+        await user.click(screen.getByRole("button", { name: "Service" }));
+        let dialog = screen.getByRole("dialog", { name: "Add service" });
+        await user.type(within(dialog).getByRole("textbox", { name: "Service name" }), "api");
+        await user.click(within(dialog).getByRole("button", { name: "Add" }));
+
+        await user.click(screen.getByRole("button", { name: "Network" }));
+        dialog = screen.getByRole("dialog", { name: "Add network" });
+        await user.type(within(dialog).getByRole("textbox", { name: "Network name" }), "backend");
+        await user.click(within(dialog).getByRole("button", { name: "Add" }));
+
+        await user.click(screen.getByRole("button", { name: "Connect network input" }));
+        await waitFor(() => expect(screen.getByLabelText("Builder service networks")).toHaveTextContent('["backend"]'));
+
+        await user.click(screen.getByRole("button", { name: "Disconnect network input" }));
+        await waitFor(() => expect(screen.getByLabelText("Builder service networks")).toHaveTextContent("[]"));
     });
 
     it("leaves the builder unchanged when resource naming is cancelled", async () => {

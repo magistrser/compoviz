@@ -58,6 +58,13 @@ const pluralResourceTypes: Record<BuilderNodeType, ResourceType> = {
     config: "configs",
 };
 
+const CLEAN_LAYOUT_VIEWPORT_PADDING = {
+    top: "160px",
+    right: "120px",
+    bottom: "300px",
+    left: "80px",
+} as const;
+
 function isResourceType(value: string): value is ResourceType {
     return value in singularResourceTypes;
 }
@@ -73,11 +80,11 @@ function relationshipForConnection(connection: Connection): ComposeRelationshipC
     if (source.type === "service" && target.type === "service") {
         return { action: "connect", relationship: "depends-on", service: target.name, target: source.name };
     }
-    if (source.type === "service" && target.type === "network") {
-        return { action: "connect", relationship: "network", service: source.name, target: target.name };
+    if (source.type === "network" && target.type === "service") {
+        return { action: "connect", relationship: "network", service: target.name, target: source.name };
     }
-    if (source.type === "service" && target.type === "volume") {
-        return { action: "connect", relationship: "volume", service: source.name, target: target.name };
+    if (source.type === "volume" && target.type === "service") {
+        return { action: "connect", relationship: "volume", service: target.name, target: source.name };
     }
     return null;
 }
@@ -90,10 +97,10 @@ function relationshipForEdge(edge: Edge): ComposeRelationshipChange | null {
         return { action: "disconnect", relationship: "depends-on", service: target.name, target: source.name };
     }
     if (edgeType === "net") {
-        return { action: "disconnect", relationship: "network", service: source.name, target: target.name };
+        return { action: "disconnect", relationship: "network", service: target.name, target: source.name };
     }
     if (edgeType === "vol") {
-        return { action: "disconnect", relationship: "volume", service: source.name, target: target.name };
+        return { action: "disconnect", relationship: "volume", service: target.name, target: source.name };
     }
     return null;
 }
@@ -403,7 +410,7 @@ export default function VisualBuilder() {
 
         setNodes(laidOutNodes);
         window.requestAnimationFrame(() => {
-            void reactFlowInstance.fitView({ padding: 0.2, duration: 300 });
+            void reactFlowInstance.fitView({ padding: CLEAN_LAYOUT_VIEWPORT_PADDING, duration: 300 });
         });
     }, [commit, edges, nodes, reactFlowInstance, setNodes]);
 

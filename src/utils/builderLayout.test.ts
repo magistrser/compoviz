@@ -14,7 +14,7 @@ describe("layoutBuilderGraph", () => {
         ];
         const edges: Edge[] = [
             { id: "dep-api-db", source: "service-db", target: "service-api" },
-            { id: "net-api-backend", source: "service-api", target: "network-backend" },
+            { id: "net-api-backend", source: "network-backend", target: "service-api" },
         ];
 
         const forward = positionsById(layoutBuilderGraph(nodes, edges));
@@ -22,7 +22,34 @@ describe("layoutBuilderGraph", () => {
 
         expect(reversed).toEqual(forward);
         expect(forward["service-db"]?.x).toBeLessThan(forward["service-api"]?.x ?? 0);
-        expect(forward["service-api"]?.x).toBeLessThan(forward["network-backend"]?.x ?? 0);
+        expect(forward["network-backend"]?.x).toBeLessThan(forward["service-api"]?.x ?? 0);
+    });
+
+    it("reserves room for right-side output and left-side input leads between acyclic ranks", () => {
+        const nodes: Node[] = [
+            { id: "service-db", type: "serviceNode", position: { x: 0, y: 0 }, data: {} },
+            { id: "service-api", type: "serviceNode", position: { x: 0, y: 0 }, data: {} },
+            { id: "network-backend", type: "networkNode", position: { x: 0, y: 0 }, data: {} },
+            { id: "volume-data", type: "volumeNode", position: { x: 0, y: 0 }, data: {} },
+        ];
+        const edges: Edge[] = [
+            { id: "dep-api-db", source: "service-db", target: "service-api" },
+            { id: "net-api-backend", source: "network-backend", target: "service-api" },
+            { id: "vol-api-data", source: "volume-data", target: "service-api" },
+        ];
+
+        const result = new Map(layoutBuilderGraph(nodes, edges).map((node) => [node.id, node] as const));
+
+        for (const edge of edges) {
+            const source = result.get(edge.source);
+            const target = result.get(edge.target);
+            expect(source).toBeDefined();
+            expect(target).toBeDefined();
+            if (!source || !target) continue;
+
+            const sourceWidth = source.type === "serviceNode" ? 240 : 180;
+            expect(target.position.x - (source.position.x + sourceWidth)).toBeGreaterThanOrEqual(180);
+        }
     });
 
     it("snaps cyclic and disconnected components to non-overlapping grid positions", () => {
@@ -39,8 +66,10 @@ describe("layoutBuilderGraph", () => {
         const originalPositions = Object.fromEntries(nodes.map((node) => [node.id, { ...node.position }] as const));
 
         const result = layoutBuilderGraph(nodes, edges);
+        const reordered = layoutBuilderGraph([...nodes].reverse(), [...edges].reverse());
 
         expect(result).toHaveLength(nodes.length);
+        expect(positionsById(reordered)).toEqual(positionsById(result));
         expect(positionsById(nodes)).toEqual(originalPositions);
         expect(result.every((node) => node.position.x % 15 === 0 && node.position.y % 15 === 0)).toBe(true);
 

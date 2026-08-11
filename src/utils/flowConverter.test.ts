@@ -1,3 +1,4 @@
+import { Position } from "@xyflow/react";
 import { describe, expect, it } from "vitest";
 import { normalizeToAST } from "../models/normalizeToAST";
 import { stateToFlow } from "./flowConverter";
@@ -25,12 +26,42 @@ describe("stateToFlow", () => {
 
         expect(flow.nodes).toEqual(
             expect.arrayContaining([
-                expect.objectContaining({ id: "service-api", position: { x: 11, y: 12 } }),
-                expect.objectContaining({ id: "service-db", position: { x: 21, y: 22 } }),
-                expect.objectContaining({ id: "network-backend", position: { x: 31, y: 32 } }),
-                expect.objectContaining({ id: "volume-data", position: { x: 41, y: 42 } }),
-                expect.objectContaining({ id: "secret-token", position: { x: 51, y: 52 } }),
-                expect.objectContaining({ id: "config-settings", position: { x: 61, y: 62 } }),
+                expect.objectContaining({
+                    id: "service-api",
+                    position: { x: 11, y: 12 },
+                    sourcePosition: Position.Right,
+                    targetPosition: Position.Left,
+                }),
+                expect.objectContaining({
+                    id: "service-db",
+                    position: { x: 21, y: 22 },
+                    sourcePosition: Position.Right,
+                    targetPosition: Position.Left,
+                }),
+                expect.objectContaining({
+                    id: "network-backend",
+                    position: { x: 31, y: 32 },
+                    sourcePosition: Position.Right,
+                    targetPosition: Position.Left,
+                }),
+                expect.objectContaining({
+                    id: "volume-data",
+                    position: { x: 41, y: 42 },
+                    sourcePosition: Position.Right,
+                    targetPosition: Position.Left,
+                }),
+                expect.objectContaining({
+                    id: "secret-token",
+                    position: { x: 51, y: 52 },
+                    sourcePosition: Position.Right,
+                    targetPosition: Position.Left,
+                }),
+                expect.objectContaining({
+                    id: "config-settings",
+                    position: { x: 61, y: 62 },
+                    sourcePosition: Position.Right,
+                    targetPosition: Position.Left,
+                }),
             ]),
         );
         expect(flow.edges.map((edge) => edge.id)).toEqual(["dep-api-db", "net-api-backend", "vol-api-data"]);
@@ -43,11 +74,15 @@ describe("stateToFlow", () => {
             }),
             expect.objectContaining({
                 id: "net-api-backend",
+                source: "network-backend",
+                target: "service-api",
                 sourceHandle: "network-out",
                 targetHandle: "network-in",
             }),
             expect.objectContaining({
                 id: "vol-api-data",
+                source: "volume-data",
+                target: "service-api",
                 sourceHandle: "volume-out",
                 targetHandle: "volume-in",
             }),

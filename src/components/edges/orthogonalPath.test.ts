@@ -58,6 +58,21 @@ const routing = (obstacles: readonly OrthogonalObstacle[]) => ({
 });
 
 describe("getRoundedOrthogonalPath", () => {
+    it("falls back to a right-side output and left-side input when positions are omitted", () => {
+        const points = getOrthogonalRoutePoints(
+            {
+                sourceX: 100,
+                sourceY: 50,
+                targetX: 500,
+                targetY: 50,
+            },
+            "volume",
+        );
+
+        expect(points[1]).toEqual({ x: 160, y: 50 });
+        expect(points.at(-2)).toEqual({ x: 440, y: 50 });
+    });
+
     it("recalculates straight segments and rounded corners when an endpoint moves", () => {
         const initial = getRoundedOrthogonalPath({
             sourceX: 0,

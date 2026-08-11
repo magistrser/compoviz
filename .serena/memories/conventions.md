@@ -5,4 +5,5 @@
 - Functional React components; PascalCase component files, `use*` hooks, camelCase utilities. Formatting follows the template-derived Prettier config.
 - Treat YAML, Dockerfiles, fetched content, browser storage, and SVG as untrusted. Preserve validation/sanitization boundaries.
 - OpenSpec is the durable behavioral authority. Do not incidentally change local-storage keys/schema, public asset paths, Compose semantics, worker fallback, or exported filenames.
+- Always use the `browser-use` workflow for browser interaction and UI smoke testing in this project.
 - Global styles are SCSS in `src/styles/global.scss`; Tailwind is not part of the toolchain.

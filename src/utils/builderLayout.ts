@@ -1,5 +1,6 @@
 import { Graph, layout, type EdgeLabel, type GraphLabel, type NodeLabel } from "@dagrejs/dagre";
 import type { Edge, Node, XYPosition } from "@xyflow/react";
+import { BUILDER_LAYOUT_RANK_SEPARATION } from "./builderConnectionGeometry";
 
 export interface BuilderNodeDimensions {
     readonly width: number;
@@ -42,7 +43,7 @@ export function layoutBuilderGraph(nodes: readonly Node[], edges: readonly Edge[
         rankdir: "LR",
         ranker: "network-simplex",
         acyclicer: "greedy",
-        ranksep: 150,
+        ranksep: BUILDER_LAYOUT_RANK_SEPARATION,
         nodesep: 90,
         edgesep: 45,
         marginx: 30,
@@ -57,7 +58,7 @@ export function layoutBuilderGraph(nodes: readonly Node[], edges: readonly Edge[
 
     for (const edge of [...edges].sort((left, right) => left.id.localeCompare(right.id))) {
         if (!graph.hasNode(edge.source) || !graph.hasNode(edge.target)) continue;
-        graph.setEdge(edge.source, edge.target, {}, edge.id);
+        graph.setEdge(edge.source, edge.target, { minlen: 1, weight: 2 }, edge.id);
     }
 
     layout(graph);

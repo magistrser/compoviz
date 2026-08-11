@@ -1,6 +1,7 @@
 import { memo } from "react";
-import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
+import { Handle, type Node, type NodeProps } from "@xyflow/react";
 import { Key } from "lucide-react";
+import { BUILDER_OUTPUT_POSITION } from "../../utils/builderConnectionGeometry";
 
 interface SecretNodeData extends Record<string, unknown> {
     name: string;
@@ -14,8 +15,8 @@ const SecretNode = memo(({ data, selected }: NodeProps<Node<SecretNodeData>>) =>
     return (
         <div className={`builder-node secret-node node-animate ${selected ? "selected" : ""}`}>
             <Handle
-                type="target"
-                position={Position.Left}
+                type="source"
+                position={BUILDER_OUTPUT_POSITION}
                 className="builder-handle node-handle-hidden"
                 id="services"
             />

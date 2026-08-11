@@ -1,6 +1,7 @@
 import { memo } from "react";
-import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
+import { Handle, type Node, type NodeProps } from "@xyflow/react";
 import { Network } from "lucide-react";
+import { BUILDER_OUTPUT_POSITION } from "../../utils/builderConnectionGeometry";
 
 interface NetworkNodeData extends Record<string, unknown> {
     name: string;
@@ -16,10 +17,10 @@ const NetworkNode = memo(({ data, selected }: NodeProps<Node<NetworkNodeData>>) 
     return (
         <div className={`builder-node network-node node-animate ${selected ? "selected" : ""}`}>
             <Handle
-                type="target"
-                position={Position.Left}
-                className="builder-handle relationship-handle handle-network-in"
-                id="network-in"
+                type="source"
+                position={BUILDER_OUTPUT_POSITION}
+                className="builder-handle relationship-handle handle-network-out"
+                id="network-out"
             />
 
             <div className="node-content">

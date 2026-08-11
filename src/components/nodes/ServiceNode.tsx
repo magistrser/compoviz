@@ -1,11 +1,12 @@
 import { memo } from "react";
-import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
+import { Handle, type Node, type NodeProps } from "@xyflow/react";
 import { Heart, FileText, Globe, RotateCcw } from "lucide-react";
+import { BUILDER_INPUT_POSITION, BUILDER_OUTPUT_POSITION } from "../../utils/builderConnectionGeometry";
 import { getServiceIcon, renderServiceIcon } from "../../utils/iconUtils";
 
 /**
  * Service node — shows image, ports, restart policy, health, network count.
- * Relationship terminals stay visible and color-coded so different wire types fan out clearly.
+ * Relationship terminals stay visible and color-coded so different wire types remain distinct.
  */
 interface ServiceNodeData extends Record<string, unknown> {
     name: string;
@@ -51,9 +52,24 @@ const ServiceNode = memo(({ data, selected }: NodeProps<Node<ServiceNodeData>>) 
         <div className={`builder-node service-node node-animate ${selected ? "selected" : ""}`}>
             <Handle
                 type="target"
-                position={Position.Left}
+                position={BUILDER_INPUT_POSITION}
                 className="builder-handle relationship-handle handle-deps-in"
                 id="deps-in"
+                style={{ top: "25%" }}
+            />
+            <Handle
+                type="target"
+                position={BUILDER_INPUT_POSITION}
+                className="builder-handle relationship-handle handle-network-in"
+                id="network-in"
+                style={{ top: "50%" }}
+            />
+            <Handle
+                type="target"
+                position={BUILDER_INPUT_POSITION}
+                className="builder-handle relationship-handle handle-volume-in"
+                id="volume-in"
+                style={{ top: "75%" }}
             />
 
             {/* Header */}
@@ -136,24 +152,10 @@ const ServiceNode = memo(({ data, selected }: NodeProps<Node<ServiceNodeData>>) 
 
             <Handle
                 type="source"
-                position={Position.Right}
+                position={BUILDER_OUTPUT_POSITION}
                 className="builder-handle relationship-handle handle-deps-out"
                 id="deps-out"
-                style={{ top: "25%" }}
-            />
-            <Handle
-                type="source"
-                position={Position.Right}
-                className="builder-handle relationship-handle handle-network-out"
-                id="network-out"
                 style={{ top: "50%" }}
-            />
-            <Handle
-                type="source"
-                position={Position.Right}
-                className="builder-handle relationship-handle handle-volume-out"
-                id="volume-out"
-                style={{ top: "75%" }}
             />
         </div>
     );

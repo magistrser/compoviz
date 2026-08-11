@@ -2672,12 +2672,12 @@ textarea::placeholder {
 }
 .builder-node .handle-deps-in {
     left: -6px;
-    top: 50%;
+    top: 25%;
     --relationship-color: #e06c9a;
 }
 .builder-node .handle-deps-out {
     right: -6px;
-    top: 25%;
+    top: 50%;
     --relationship-color: #e06c9a;
 }
 .builder-node .handle-network-out {
@@ -2687,7 +2687,7 @@ textarea::placeholder {
 }
 .builder-node .handle-volume-out {
     right: -6px;
-    top: 75%;
+    top: 50%;
     --relationship-color: #eab354;
 }
 .builder-node .handle-network-in {
@@ -2697,7 +2697,7 @@ textarea::placeholder {
 }
 .builder-node .handle-volume-in {
     left: -6px;
-    top: 50%;
+    top: 75%;
     --relationship-color: #eab354;
 }
 .builder-node .relationship-handle {
