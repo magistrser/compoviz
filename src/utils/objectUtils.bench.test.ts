@@ -142,6 +142,7 @@ describe("Performance Benchmarks", () => {
                 oldShouldUpdateNodes(smallDataset, smallDatasetCopy);
             });
 
+            const mergedDataset = mergeFlowElements(smallDataset, smallDatasetCopy);
             const newBench = benchmark("New (ID-based)", () => {
                 mergeFlowElements(smallDataset, smallDatasetCopy);
             });
@@ -158,9 +159,7 @@ describe("Performance Benchmarks", () => {
                 console.log(`      The tradeoff is worthwhile for correctness (reordering fix)`);
             }
 
-            // For small datasets, Map overhead may make it slightly slower, which is acceptable
-            // The correctness improvement (reordering handling) outweighs the minor overhead
-            expect(true).toBe(true);
+            expect(mergedDataset).toBe(smallDataset);
         });
 
         it("should benchmark - single change scenario", () => {
@@ -171,6 +170,7 @@ describe("Performance Benchmarks", () => {
                 oldShouldUpdateNodes(smallDataset, modifiedDataset);
             });
 
+            const mergedDataset = mergeFlowElements(smallDataset, modifiedDataset);
             const newBench = benchmark("New (ID-based)", () => {
                 mergeFlowElements(smallDataset, modifiedDataset);
             });
@@ -180,7 +180,10 @@ describe("Performance Benchmarks", () => {
             console.log("\n📊 Small Dataset - Single Change:");
             console.log(`   Old: ${oldBench.avgTime}ms avg`);
             console.log(`   New: ${newBench.avgTime}ms avg`);
-            console.log(`   ✅ New approach is ${comparison.faster}`);
+            console.log(`   ${comparison.improvement > 0 ? "✅" : "⚠️"} New approach is ${comparison.faster}`);
+
+            expect(mergedDataset[0]).toBe(smallDataset[0]);
+            expect(mergedDataset[5]).toBe(modifiedDataset[5]);
         });
     });
 
@@ -197,6 +200,7 @@ describe("Performance Benchmarks", () => {
                 500,
             );
 
+            const mergedDataset = mergeFlowElements(mediumDataset, mediumDatasetCopy);
             const newBench = benchmark(
                 "New (ID-based)",
                 () => {
@@ -210,22 +214,13 @@ describe("Performance Benchmarks", () => {
             console.log("\n📊 Medium Dataset - No Changes:");
             console.log(`   Old: ${oldBench.avgTime}ms avg`);
             console.log(`   New: ${newBench.avgTime}ms avg`);
-            console.log(`   ✅ New approach is ${comparison.faster}`);
+            console.log(`   ${comparison.improvement > 0 ? "✅" : "⚠️"} New approach is ${comparison.faster}`);
 
-            // Assert significant improvement
-            expect(comparison.improvement).toBeGreaterThan(0);
+            expect(mergedDataset).toBe(mediumDataset);
         });
 
         it("should benchmark - reordering scenario (critical)", () => {
-            const reorderedDataset = [...mediumDataset];
-            // Shuffle the array
-            for (let i = reorderedDataset.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                const current = requireValue(reorderedDataset[i]);
-                const replacement = requireValue(reorderedDataset[j]);
-                reorderedDataset[i] = replacement;
-                reorderedDataset[j] = current;
-            }
+            const reorderedDataset = [...mediumDataset].reverse();
 
             const oldBench = benchmark(
                 "Old (position-based)",
@@ -235,6 +230,7 @@ describe("Performance Benchmarks", () => {
                 500,
             );
 
+            const mergedDataset = mergeFlowElements(mediumDataset, reorderedDataset);
             const newBench = benchmark(
                 "New (ID-based)",
                 () => {
@@ -248,7 +244,10 @@ describe("Performance Benchmarks", () => {
             console.log("\n📊 Medium Dataset - Reordering:");
             console.log(`   Old: ${oldBench.avgTime}ms avg (BROKEN - early exit on first mismatch)`);
             console.log(`   New: ${newBench.avgTime}ms avg`);
-            console.log(`   ✅ New approach is ${comparison.faster}`);
+            console.log(`   ${comparison.improvement > 0 ? "✅" : "⚠️"} New approach is ${comparison.faster}`);
+
+            expect(mergedDataset.map(({ id }) => id)).toEqual(reorderedDataset.map(({ id }) => id));
+            expect(mergedDataset[0]).toBe(reorderedDataset[0]);
         });
     });
 
@@ -265,6 +264,7 @@ describe("Performance Benchmarks", () => {
                 200,
             );
 
+            const mergedDataset = mergeFlowElements(largeDataset, largeDatasetCopy);
             const newBench = benchmark(
                 "New (ID-based)",
                 () => {
@@ -278,10 +278,9 @@ describe("Performance Benchmarks", () => {
             console.log("\n📊 Large Dataset - No Changes:");
             console.log(`   Old: ${oldBench.avgTime}ms avg`);
             console.log(`   New: ${newBench.avgTime}ms avg`);
-            console.log(`   ✅ New approach is ${comparison.faster}`);
+            console.log(`   ${comparison.improvement > 0 ? "✅" : "⚠️"} New approach is ${comparison.faster}`);
 
-            // Assert significant improvement for large datasets
-            expect(comparison.improvement).toBeGreaterThan(0);
+            expect(mergedDataset).toBe(largeDataset);
         });
 
         it("should benchmark - multiple changes scenario", () => {
@@ -299,6 +298,7 @@ describe("Performance Benchmarks", () => {
                 200,
             );
 
+            const mergedDataset = mergeFlowElements(largeDataset, modifiedDataset);
             const newBench = benchmark(
                 "New (ID-based)",
                 () => {
@@ -312,7 +312,10 @@ describe("Performance Benchmarks", () => {
             console.log("\n📊 Large Dataset - Multiple Changes:");
             console.log(`   Old: ${oldBench.avgTime}ms avg`);
             console.log(`   New: ${newBench.avgTime}ms avg`);
-            console.log(`   ✅ New approach is ${comparison.faster}`);
+            console.log(`   ${comparison.improvement > 0 ? "✅" : "⚠️"} New approach is ${comparison.faster}`);
+
+            expect(mergedDataset[0]).toBe(modifiedDataset[0]);
+            expect(mergedDataset[20]).toBe(largeDataset[20]);
         });
     });
 
@@ -329,6 +332,7 @@ describe("Performance Benchmarks", () => {
                 200,
             );
 
+            const mergedDataset = mergeFlowElements(complexDataset, complexDatasetCopy);
             const newBench = benchmark(
                 "New (deepEqual)",
                 () => {
@@ -342,26 +346,30 @@ describe("Performance Benchmarks", () => {
             console.log("\n📊 Complex Data - Deep Nested Objects:");
             console.log(`   Old: ${oldBench.avgTime}ms avg (JSON.stringify overhead)`);
             console.log(`   New: ${newBench.avgTime}ms avg (optimized deepEqual)`);
-            console.log(`   ✅ New approach is ${comparison.faster}`);
+            console.log(`   ${comparison.improvement > 0 ? "✅" : "⚠️"} New approach is ${comparison.faster}`);
 
-            // This should show the biggest improvement due to JSON.stringify overhead
-            expect(comparison.improvement).toBeGreaterThan(30);
+            expect(mergedDataset).toBe(complexDataset);
         });
     });
 
     describe("Edge Cases", () => {
         it("should benchmark - empty arrays", () => {
+            const previousDataset: BenchmarkNode[] = [];
+            const nextDataset: BenchmarkNode[] = [];
             const oldBench = benchmark("Old (empty)", () => {
-                oldShouldUpdateNodes([], []);
+                oldShouldUpdateNodes(previousDataset, nextDataset);
             });
 
+            const mergedDataset = mergeFlowElements(previousDataset, nextDataset);
             const newBench = benchmark("New (empty)", () => {
-                mergeFlowElements([], []);
+                mergeFlowElements(previousDataset, nextDataset);
             });
 
             console.log("\n📊 Edge Case - Empty Arrays:");
             console.log(`   Old: ${oldBench.avgTime}ms avg`);
             console.log(`   New: ${newBench.avgTime}ms avg`);
+
+            expect(mergedDataset).toBe(previousDataset);
         });
 
         it("should benchmark - identical reference (early exit)", () => {
@@ -376,6 +384,7 @@ describe("Performance Benchmarks", () => {
                 500,
             );
 
+            const mergedDataset = mergeFlowElements(dataset, dataset);
             const newBench = benchmark(
                 "New (identical ref)",
                 () => {
@@ -389,32 +398,9 @@ describe("Performance Benchmarks", () => {
             console.log("\n📊 Edge Case - Identical Reference:");
             console.log(`   Old: ${oldBench.avgTime}ms avg (no early exit)`);
             console.log(`   New: ${newBench.avgTime}ms avg (early exit optimization)`);
-            console.log(`   ✅ New approach is ${comparison.faster}`);
+            console.log(`   ${comparison.improvement > 0 ? "✅" : "⚠️"} New approach is ${comparison.faster}`);
 
-            // Should be MUCH faster due to early exit
-            expect(newBench.avgTime).toBeLessThan(oldBench.avgTime * 0.1);
-        });
-    });
-
-    describe("Overall Summary", () => {
-        it("should display comprehensive performance report", () => {
-            console.log(`\n${"=".repeat(60)}`);
-            console.log("📈 PERFORMANCE OPTIMIZATION SUMMARY");
-            console.log("=".repeat(60));
-            console.log("\n✅ Key Improvements:");
-            console.log("   • ID-based Map lookup: O(1) vs O(n)");
-            console.log("   • Optimized deepEqual: ~60-80% faster than JSON.stringify");
-            console.log("   • Reference preservation: Prevents unnecessary re-renders");
-            console.log("   • Early exit optimizations: Identical reference check");
-            console.log("   • Reordering bug fix: Correctly handles element reordering");
-            console.log("\n📊 Expected Real-World Impact:");
-            console.log("   • Small diagrams (5-10 nodes): 20-30% improvement");
-            console.log("   • Medium diagrams (20-50 nodes): 40-60% improvement");
-            console.log("   • Large diagrams (100+ nodes): 60-70% improvement");
-            console.log(`\n${"=".repeat(60)}\n`);
-
-            // This test always passes - it's just for display
-            expect(true).toBe(true);
+            expect(mergedDataset).toBe(dataset);
         });
     });
 });

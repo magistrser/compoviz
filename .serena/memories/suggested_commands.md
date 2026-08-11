@@ -8,3 +8,4 @@
 - OpenSpec: `openspec list`, `openspec show <change>`, `openspec validate <change> --strict`.
 - Docker dev: `yarn docker:dev`; production image: `docker build -t compoviz-dev .`.
 - Prefer RTK for noisy exploration; use raw commands for final proof and exact failures.
+- GitHub Actions that cache Yarn must first run pinned `setup-node` without caching, enable Corepack, then run the pinned setup action with `cache: yarn`; this ensures the declared Yarn 4 toolchain exists before cache discovery.

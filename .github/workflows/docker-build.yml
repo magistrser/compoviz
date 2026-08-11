@@ -46,16 +46,21 @@ jobs:
             attestations: write # allow job to create attestations
         steps:
             - name: Checkout repository
-              uses: actions/checkout@v6 # v6 for node 24 support and secure git credential storage
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
             - name: Set up Node.js
-              uses: actions/setup-node@v4
+              uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
               with:
                   node-version-file: ".nvmrc"
-                  cache: "yarn"
 
             - name: Enable Corepack
               run: corepack enable
+
+            - name: Restore Yarn cache
+              uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+              with:
+                  node-version-file: ".nvmrc"
+                  cache: "yarn"
 
             - name: Extract version from package.json
               id: package-version
