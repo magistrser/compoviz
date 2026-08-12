@@ -38,8 +38,9 @@ const NetworkEdge = memo(
                 className={`network-edge ${selected ? "selected" : ""}`}
                 style={{
                     stroke: "#56D4DD",
-                    strokeWidth: selected ? 2.5 : 1.5,
+                    strokeWidth: selected ? 4 : 1.5,
                     strokeDasharray: "5 3",
+                    filter: selected ? "drop-shadow(0 0 3px #56D4DD)" : undefined,
                 }}
             />
         );

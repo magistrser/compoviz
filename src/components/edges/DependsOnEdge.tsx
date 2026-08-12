@@ -45,7 +45,8 @@ const DependsOnEdge = memo(
                 className={`depends-on-edge ${selected ? "selected" : ""}`}
                 style={{
                     stroke: conditionVisual.color,
-                    strokeWidth: selected ? 3 : 2,
+                    strokeWidth: selected ? 4 : 2,
+                    filter: selected ? `drop-shadow(0 0 3px ${conditionVisual.color})` : undefined,
                 }}
             />
         );

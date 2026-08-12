@@ -4,3 +4,4 @@
 - Service headers must keep icons/badges non-shrinking and give `.node-title` `min-width: 0` with ellipsis so long Compose resource names stay inside the fixed-width node.
 
 - Builder dependency-condition visuals are centralized in `src/components/edges/dependencyConditionVisuals.ts`; the edge renderer and Connection Types legend share that palette, and dependency wires intentionally omit inline condition labels.
+- Selected dependency, network, and volume edges render at `4px` with a compact color-matched drop shadow; unselected widths remain `2px` for dependencies and `1.5px` for network/volume edges.
