@@ -19,6 +19,9 @@ const ConfigNode = memo(({ data, selected }: NodeProps<Node<ConfigNodeData>>) =>
                 position={BUILDER_OUTPUT_POSITION}
                 className="builder-handle node-handle-hidden"
                 id="services"
+                isConnectable={false}
+                isConnectableStart={false}
+                isConnectableEnd={false}
             />
 
             <div className="node-content">

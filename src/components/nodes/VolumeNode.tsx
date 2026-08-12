@@ -1,7 +1,8 @@
 import { memo } from "react";
-import { Handle, type Node, type NodeProps } from "@xyflow/react";
+import type { Node, NodeProps } from "@xyflow/react";
 import { Database } from "lucide-react";
 import { BUILDER_OUTPUT_POSITION } from "../../utils/builderConnectionGeometry";
+import BuilderHandle from "./BuilderHandle";
 
 interface VolumeNodeData extends Record<string, unknown> {
     name: string;
@@ -11,16 +12,19 @@ interface VolumeNodeData extends Record<string, unknown> {
     suggestionSeverity?: string | null;
 }
 
-const VolumeNode = memo(({ data, selected }: NodeProps<Node<VolumeNodeData>>) => {
+const VolumeNode = memo(({ data, id, selected }: NodeProps<Node<VolumeNodeData>>) => {
     const { name, driver = "local", external = false, suggestionCount = 0, suggestionSeverity = null } = data;
 
     return (
         <div className={`builder-node volume-node node-animate ${selected ? "selected" : ""}`}>
-            <Handle
+            <BuilderHandle
                 type="source"
                 position={BUILDER_OUTPUT_POSITION}
                 className="builder-handle relationship-handle handle-volume-out"
                 id="volume-out"
+                nodeId={id}
+                nodeName={name}
+                terminalLabel="Volume output"
             />
 
             <div className="node-content">

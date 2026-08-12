@@ -1,8 +1,9 @@
 import { memo } from "react";
-import { Handle, type Node, type NodeProps } from "@xyflow/react";
+import type { Node, NodeProps } from "@xyflow/react";
 import { Heart, FileText, Globe, RotateCcw } from "lucide-react";
 import { BUILDER_INPUT_POSITION, BUILDER_OUTPUT_POSITION } from "../../utils/builderConnectionGeometry";
 import { getServiceIcon, renderServiceIcon } from "../../utils/iconUtils";
+import BuilderHandle from "./BuilderHandle";
 
 /**
  * Service node — shows image, ports, restart policy, health, network count.
@@ -21,7 +22,7 @@ interface ServiceNodeData extends Record<string, unknown> {
     suggestionSeverity?: string | null;
 }
 
-const ServiceNode = memo(({ data, selected }: NodeProps<Node<ServiceNodeData>>) => {
+const ServiceNode = memo(({ data, id, selected }: NodeProps<Node<ServiceNodeData>>) => {
     const {
         name,
         image,
@@ -50,25 +51,34 @@ const ServiceNode = memo(({ data, selected }: NodeProps<Node<ServiceNodeData>>) 
 
     return (
         <div className={`builder-node service-node node-animate ${selected ? "selected" : ""}`}>
-            <Handle
+            <BuilderHandle
                 type="target"
                 position={BUILDER_INPUT_POSITION}
                 className="builder-handle relationship-handle handle-deps-in"
                 id="deps-in"
+                nodeId={id}
+                nodeName={name}
+                terminalLabel="Dependency input"
                 style={{ top: "37.5%" }}
             />
-            <Handle
+            <BuilderHandle
                 type="target"
                 position={BUILDER_INPUT_POSITION}
                 className="builder-handle relationship-handle handle-network-in"
                 id="network-in"
+                nodeId={id}
+                nodeName={name}
+                terminalLabel="Network input"
                 style={{ top: "50%" }}
             />
-            <Handle
+            <BuilderHandle
                 type="target"
                 position={BUILDER_INPUT_POSITION}
                 className="builder-handle relationship-handle handle-volume-in"
                 id="volume-in"
+                nodeId={id}
+                nodeName={name}
+                terminalLabel="Volume input"
                 style={{ top: "62.5%" }}
             />
 
@@ -150,11 +160,14 @@ const ServiceNode = memo(({ data, selected }: NodeProps<Node<ServiceNodeData>>) 
                 </div>
             </div>
 
-            <Handle
+            <BuilderHandle
                 type="source"
                 position={BUILDER_OUTPUT_POSITION}
                 className="builder-handle relationship-handle handle-deps-out"
                 id="deps-out"
+                nodeId={id}
+                nodeName={name}
+                terminalLabel="Dependency output"
                 style={{ top: "37.5%" }}
             />
         </div>

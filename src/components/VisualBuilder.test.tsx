@@ -9,7 +9,7 @@ import {
     type PropsWithChildren,
     type ReactNode,
 } from "react";
-import type { Connection, Edge, Node, OnBeforeDelete } from "@xyflow/react";
+import type { Connection, Edge, HandleProps, Node, NodeTypes, OnBeforeDelete } from "@xyflow/react";
 import VisualBuilder from "./VisualBuilder";
 import { useComposeWorkspace } from "../features/compose-workspace";
 import { useComposeEditing } from "../features/compose-editing";
@@ -33,6 +33,9 @@ vi.mock("@xyflow/react", () => ({
         onEdgeContextMenu,
         onEdgesDelete,
         minZoom,
+        nodeTypes,
+        connectOnClick,
+        nodesConnectable,
     }: {
         children?: ReactNode;
         nodes?: Node[];
@@ -51,6 +54,9 @@ vi.mock("@xyflow/react", () => ({
         onEdgeContextMenu?: (event: ReactMouseEvent, edge: Edge) => void;
         onEdgesDelete?: (edges: Edge[]) => void;
         minZoom?: number;
+        nodeTypes?: NodeTypes;
+        connectOnClick?: boolean;
+        nodesConnectable?: boolean;
     }) => {
         const dependencyEdge = edges?.find((edge) => edge.id.startsWith("dep-"));
         const selectedEdgeIds = edges
@@ -64,6 +70,31 @@ vi.mock("@xyflow/react", () => ({
                     (edge.data?.routing as { networkBundleTargetNodeIds?: readonly string[] } | undefined)
                         ?.networkBundleTargetNodeIds,
             );
+        const renderNode = (node: Node) => {
+            const nodeType = node.type;
+            const NodeComponent = nodeType ? nodeTypes?.[nodeType] : undefined;
+            return (
+                <div key={node.id}>
+                    <button onClick={(event) => onNodeClick?.(event, node)}>Select {node.id}</button>
+                    {nodeType && NodeComponent ? (
+                        <NodeComponent
+                            id={node.id}
+                            type={nodeType}
+                            data={node.data}
+                            selected={Boolean(node.selected)}
+                            dragging={false}
+                            zIndex={0}
+                            selectable
+                            deletable
+                            draggable
+                            isConnectable
+                            positionAbsoluteX={node.position.x}
+                            positionAbsoluteY={node.position.y}
+                        />
+                    ) : null}
+                </div>
+            );
+        };
         return (
             <div
                 data-testid="react-flow"
@@ -76,16 +107,11 @@ vi.mock("@xyflow/react", () => ({
                 </output>
                 <output aria-label="Canvas pre-delete enabled">{String(Boolean(onBeforeDelete))}</output>
                 <output aria-label="Canvas minimum zoom">{String(minZoom)}</output>
+                <output aria-label="Canvas click connection enabled">{String(connectOnClick)}</output>
+                <output aria-label="Canvas native connections enabled">{String(nodesConnectable)}</output>
                 <output aria-label="Network bundle targets">{JSON.stringify(networkBundleTargets ?? [])}</output>
                 <output aria-label="Selected builder relationships">{JSON.stringify(selectedEdgeIds ?? [])}</output>
-                {nodes?.map((node) => (
-                    <button
-                        key={node.id}
-                        onClick={(event) => onNodeClick?.(event, node)}
-                    >
-                        Select {node.id}
-                    </button>
-                ))}
+                {nodes?.map(renderNode)}
                 <button onClick={() => onPaneClick?.()}>Clear node selection</button>
                 <button
                     onClick={() =>
@@ -186,6 +212,22 @@ vi.mock("@xyflow/react", () => ({
     Controls: () => <div data-testid="controls" />,
     MiniMap: () => <div data-testid="minimap" />,
     Panel: ({ children }: PropsWithChildren) => <div data-testid="panel">{children}</div>,
+    Handle: (props: HandleProps) => (
+        <div
+            role={props.role}
+            tabIndex={props.tabIndex}
+            className={props.className}
+            aria-label={props["aria-label"]}
+            aria-pressed={props["aria-pressed"]}
+            data-handle-id={props.id}
+            data-handle-type={props.type}
+            data-connectable={props.isConnectable}
+            data-connectable-start={props.isConnectableStart}
+            data-connectable-end={props.isConnectableEnd}
+            onClick={props.onClick}
+            onKeyDown={props.onKeyDown}
+        />
+    ),
     BackgroundVariant: { Dots: "dots" },
     Position: { Left: "left", Right: "right", Top: "top", Bottom: "bottom" },
     useNodesState: (initial: Node[]) => {
@@ -287,6 +329,9 @@ describe("VisualBuilder Component", () => {
         );
 
         expect(screen.getByTestId("react-flow")).toBeInTheDocument();
+        expect(screen.getByLabelText("Canvas click connection enabled")).toHaveTextContent("false");
+        expect(screen.getByLabelText("Canvas native connections enabled")).toHaveTextContent("false");
+        expect(screen.getByText("🔗 Click two connection points to connect")).toBeInTheDocument();
     });
 
     it("shows background grid", () => {
@@ -492,6 +537,117 @@ describe("VisualBuilder Component", () => {
 
         await user.click(screen.getByRole("button", { name: "Disconnect network input" }));
         await waitFor(() => expect(screen.getByLabelText("Builder service networks")).toHaveTextContent("[]"));
+    });
+
+    it("connects a network by clicking its output and then the service input", async () => {
+        const user = userEvent.setup();
+        renderBuilder();
+
+        await addService(user, "api");
+        await user.click(screen.getByRole("button", { name: "Network" }));
+        const dialog = screen.getByRole("dialog", { name: "Add network" });
+        await user.type(within(dialog).getByRole("textbox", { name: "Network name" }), "backend");
+        await user.click(within(dialog).getByRole("button", { name: "Add" }));
+
+        const output = await screen.findByRole("button", { name: "Network output for backend" });
+        await user.click(output);
+        const connectionMode = screen.getByRole("status", { name: "Connection mode" });
+        expect(connectionMode).toHaveTextContent(
+            "Network output for backend selected. Choose a compatible input point.",
+        );
+        expect(connectionMode).toHaveClass("builder-connection-mode");
+        expect(output).toHaveAttribute("aria-pressed", "true");
+        expect(output).toHaveClass("builder-handle-active");
+        expect(screen.getByRole("button", { name: "Network input for api" })).toHaveClass("builder-handle-compatible");
+        expect(screen.getByRole("button", { name: "Dependency input for api" })).toHaveClass(
+            "builder-handle-incompatible",
+        );
+        expect(screen.getByLabelText("Builder service networks")).toHaveTextContent("[]");
+
+        await user.click(screen.getByRole("button", { name: "Network input for api" }));
+
+        await waitFor(() => expect(screen.getByLabelText("Builder service networks")).toHaveTextContent('["backend"]'));
+        expect(screen.queryByRole("status", { name: "Connection mode" })).not.toBeInTheDocument();
+    });
+
+    it("connects a network when the service input is clicked before the resource output", async () => {
+        const user = userEvent.setup();
+        renderBuilder();
+
+        await addService(user, "api");
+        await user.click(screen.getByRole("button", { name: "Network" }));
+        const dialog = screen.getByRole("dialog", { name: "Add network" });
+        await user.type(within(dialog).getByRole("textbox", { name: "Network name" }), "backend");
+        await user.click(within(dialog).getByRole("button", { name: "Add" }));
+
+        await user.click(screen.getByRole("button", { name: "Network input for api" }));
+        expect(screen.getByRole("status", { name: "Connection mode" })).toHaveTextContent(
+            "Network input for api selected. Choose a compatible output point.",
+        );
+
+        await user.click(await screen.findByRole("button", { name: "Network output for backend" }));
+
+        await waitFor(() => expect(screen.getByLabelText("Builder service networks")).toHaveTextContent('["backend"]'));
+        expect(screen.queryByRole("status", { name: "Connection mode" })).not.toBeInTheDocument();
+    });
+
+    it("keeps connection mode active when the second terminal has a different relationship type", async () => {
+        const user = userEvent.setup();
+        renderBuilder();
+
+        await addService(user, "api");
+        await user.click(screen.getByRole("button", { name: "Network" }));
+        let dialog = screen.getByRole("dialog", { name: "Add network" });
+        await user.type(within(dialog).getByRole("textbox", { name: "Network name" }), "backend");
+        await user.click(within(dialog).getByRole("button", { name: "Add" }));
+        await screen.findByRole("button", { name: "Network output for backend" });
+
+        await user.click(screen.getByRole("button", { name: "Volume" }));
+        dialog = screen.getByRole("dialog", { name: "Add volume" });
+        await user.type(within(dialog).getByRole("textbox", { name: "Volume name" }), "data");
+        await user.click(within(dialog).getByRole("button", { name: "Add" }));
+
+        await user.click(screen.getByRole("button", { name: "Network input for api" }));
+        await user.click(await screen.findByRole("button", { name: "Volume output for data" }));
+
+        expect(screen.getByRole("status", { name: "Connection mode" })).toHaveTextContent(
+            "Network input for api selected",
+        );
+        expect(screen.getByLabelText("Builder service networks")).toHaveTextContent("[]");
+        expect(screen.getByLabelText("Builder service volumes")).toHaveTextContent("[]");
+
+        await user.click(screen.getByRole("button", { name: "Network output for backend" }));
+        await waitFor(() => expect(screen.getByLabelText("Builder service networks")).toHaveTextContent('["backend"]'));
+    });
+
+    it("cancels connection mode without changing the project", async () => {
+        const user = userEvent.setup();
+        renderBuilder();
+
+        await addService(user, "api");
+        await user.click(screen.getByRole("button", { name: "Network" }));
+        const dialog = screen.getByRole("dialog", { name: "Add network" });
+        await user.type(within(dialog).getByRole("textbox", { name: "Network name" }), "backend");
+        await user.click(within(dialog).getByRole("button", { name: "Add" }));
+        const output = await screen.findByRole("button", { name: "Network output for backend" });
+
+        await user.click(output);
+        await user.click(output);
+        expect(screen.queryByRole("status", { name: "Connection mode" })).not.toBeInTheDocument();
+
+        await user.click(output);
+        await user.click(screen.getByRole("button", { name: "Cancel connection" }));
+        expect(screen.queryByRole("status", { name: "Connection mode" })).not.toBeInTheDocument();
+
+        await user.click(output);
+        await user.click(screen.getByRole("button", { name: "Clear node selection" }));
+        expect(screen.queryByRole("status", { name: "Connection mode" })).not.toBeInTheDocument();
+
+        await user.click(output);
+        output.focus();
+        await user.keyboard("{Escape}");
+        expect(screen.queryByRole("status", { name: "Connection mode" })).not.toBeInTheDocument();
+        expect(screen.getByLabelText("Builder service networks")).toHaveTextContent("[]");
     });
 
     it("supplies the same stable sibling targets to every edge from a shared network", async () => {

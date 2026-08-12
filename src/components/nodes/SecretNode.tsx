@@ -19,6 +19,9 @@ const SecretNode = memo(({ data, selected }: NodeProps<Node<SecretNodeData>>) =>
                 position={BUILDER_OUTPUT_POSITION}
                 className="builder-handle node-handle-hidden"
                 id="services"
+                isConnectable={false}
+                isConnectableStart={false}
+                isConnectableEnd={false}
             />
 
             <div className="node-content">

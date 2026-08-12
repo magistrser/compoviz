@@ -8,17 +8,43 @@ import NetworkNode from "./NetworkNode";
 import SecretNode from "./SecretNode";
 import ServiceNode from "./ServiceNode";
 import VolumeNode from "./VolumeNode";
+import { BuilderConnectionProvider } from "./BuilderHandle";
 
 vi.mock("@xyflow/react", async (importOriginal) => {
     const actual = await importOriginal<typeof ReactFlowModule>();
     return {
         ...actual,
-        Handle: ({ id, position, style, type }: HandleProps) => (
+        Handle: ({
+            "aria-label": ariaLabel,
+            "aria-pressed": ariaPressed,
+            className,
+            id,
+            isConnectable,
+            isConnectableEnd,
+            isConnectableStart,
+            onClick,
+            onKeyDown,
+            position,
+            role,
+            style,
+            tabIndex,
+            type,
+        }: HandleProps) => (
             <span
+                role={role}
+                aria-label={ariaLabel}
+                aria-pressed={ariaPressed}
+                className={className}
                 data-testid={`handle-${id ?? type}`}
+                data-connectable={isConnectable}
+                data-connectable-end={isConnectableEnd}
+                data-connectable-start={isConnectableStart}
                 data-position={position}
                 data-type={type}
+                tabIndex={tabIndex}
                 style={style}
+                onClick={onClick}
+                onKeyDown={onKeyDown}
             />
         ),
     };
@@ -64,6 +90,50 @@ describe("builder node connection handles", () => {
         expect(screen.getByTestId("handle-volume-in")).toHaveStyle({ top: "62.5%" });
     });
 
+    it("exposes supported terminals as click-only buttons", () => {
+        render(<ServiceNode {...serviceProps} />);
+
+        const networkInput = screen.getByRole("button", { name: "Network input for api" });
+        expect(networkInput).toHaveAttribute("tabindex", "0");
+        expect(networkInput).toHaveAttribute("aria-pressed", "false");
+        expect(networkInput).toHaveAttribute("data-connectable", "false");
+        expect(networkInput).toHaveAttribute("data-connectable-start", "false");
+        expect(networkInput).toHaveAttribute("data-connectable-end", "false");
+    });
+
+    it("identifies the selected terminal and its compatible candidates", () => {
+        render(
+            <BuilderConnectionProvider
+                activeTerminal={{
+                    nodeId: "network-backend",
+                    handleId: "network-out",
+                    handleType: "source",
+                    label: "Network output for backend",
+                }}
+                isCompatibleTerminal={(terminal) => terminal.handleId === "network-in"}
+                onTerminalClick={() => undefined}
+            >
+                <NetworkNode
+                    {...commonProps}
+                    id="network-backend"
+                    type="networkNode"
+                    data={{ name: "backend" }}
+                />
+                <ServiceNode {...serviceProps} />
+            </BuilderConnectionProvider>,
+        );
+
+        expect(screen.getByRole("button", { name: "Network output for backend" })).toHaveClass("builder-handle-active");
+        expect(screen.getByRole("button", { name: "Network output for backend" })).toHaveAttribute(
+            "aria-pressed",
+            "true",
+        );
+        expect(screen.getByRole("button", { name: "Network input for api" })).toHaveClass("builder-handle-compatible");
+        expect(screen.getByRole("button", { name: "Dependency input for api" })).toHaveClass(
+            "builder-handle-incompatible",
+        );
+    });
+
     it.each([
         [
             "network",
@@ -94,5 +164,21 @@ describe("builder node connection handles", () => {
 
         expect(screen.getByTestId(`handle-${handleId}`)).toHaveAttribute("data-type", "source");
         expect(screen.getByTestId(`handle-${handleId}`)).toHaveAttribute("data-position", "right");
+    });
+
+    it.each([
+        ["secret", SecretNode, { ...commonProps, id: "secret-token", type: "secretNode", data: { name: "token" } }],
+        [
+            "config",
+            ConfigNode,
+            { ...commonProps, id: "config-settings", type: "configNode", data: { name: "settings" } },
+        ],
+    ] as const)("keeps the unsupported %s handle inert", (_resource, NodeComponent, props) => {
+        render(<NodeComponent {...props} />);
+
+        const handle = screen.getByTestId("handle-services");
+        expect(handle).toHaveAttribute("data-connectable", "false");
+        expect(handle).toHaveAttribute("data-connectable-start", "false");
+        expect(handle).toHaveAttribute("data-connectable-end", "false");
     });
 });

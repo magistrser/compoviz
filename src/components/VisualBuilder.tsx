@@ -18,6 +18,8 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import { nodeTypes } from "./nodes";
+import { BuilderConnectionProvider } from "./nodes/BuilderHandle";
+import { connectionForTerminals, type BuilderTerminal } from "./nodes/builderConnection";
 import { DEPENDENCY_CONDITION_VISUALS, edgeTypes } from "./edges";
 import { DependencyConditions, type DependencyCondition } from "../models";
 import { routingObstaclesForNodes } from "./edges/orthogonalPath";
@@ -96,17 +98,33 @@ function relationshipForConnection(connection: Connection): BuilderRelationshipT
     if (!connection.source || !connection.target) return null;
     const source = parseNodeId(connection.source);
     const target = parseNodeId(connection.target);
-    if (source.type === "service" && target.type === "service") {
+    if (
+        source.type === "service" &&
+        target.type === "service" &&
+        source.name !== target.name &&
+        connection.sourceHandle === "deps-out" &&
+        connection.targetHandle === "deps-in"
+    ) {
         return {
             relationship: "depends-on",
             service: target.name,
             target: source.name,
         };
     }
-    if (source.type === "network" && target.type === "service") {
+    if (
+        source.type === "network" &&
+        target.type === "service" &&
+        connection.sourceHandle === "network-out" &&
+        connection.targetHandle === "network-in"
+    ) {
         return { relationship: "network", service: target.name, target: source.name };
     }
-    if (source.type === "volume" && target.type === "service") {
+    if (
+        source.type === "volume" &&
+        target.type === "service" &&
+        connection.sourceHandle === "volume-out" &&
+        connection.targetHandle === "volume-in"
+    ) {
         return { relationship: "volume", service: target.name, target: source.name };
     }
     return null;
@@ -141,7 +159,7 @@ function relationshipForEdge(edge: Edge): ComposeRelationshipChange | null {
 
 /**
  * Visual Builder component using React Flow for interactive compose creation.
- * Allows drag-and-drop creation and connection of Docker resources.
+ * Allows drag-and-drop resource creation and click-based connection of Docker resources.
  * Now includes NodeConfigPanel for full configuration of each node.
  */
 export default function VisualBuilder() {
@@ -155,6 +173,7 @@ export default function VisualBuilder() {
     const autoCleanedGenerationRef = useRef<number | null>(null);
     const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance<Node, Edge> | null>(null);
     const [selectedNode, setSelectedNode] = useState<SelectedNode | null>(null);
+    const [activeConnectionTerminal, setActiveConnectionTerminal] = useState<BuilderTerminal | null>(null);
 
     const addResource = useCallback(
         (type: ResourceType, name: string, position?: Position) => {
@@ -297,6 +316,39 @@ export default function VisualBuilder() {
         [chooseDependencyCondition, commit],
     );
 
+    const onTerminalClick = useCallback(
+        (terminal: BuilderTerminal) => {
+            if (!activeConnectionTerminal) {
+                setActiveConnectionTerminal(terminal);
+                return;
+            }
+
+            if (
+                activeConnectionTerminal.nodeId === terminal.nodeId &&
+                activeConnectionTerminal.handleId === terminal.handleId &&
+                activeConnectionTerminal.handleType === terminal.handleType
+            ) {
+                setActiveConnectionTerminal(null);
+                return;
+            }
+
+            const connection = connectionForTerminals(activeConnectionTerminal, terminal);
+            if (!connection || !relationshipForConnection(connection)) return;
+            setActiveConnectionTerminal(null);
+            onConnect(connection);
+        },
+        [activeConnectionTerminal, onConnect],
+    );
+
+    const isCompatibleTerminal = useCallback(
+        (terminal: BuilderTerminal) => {
+            if (!activeConnectionTerminal) return false;
+            const connection = connectionForTerminals(activeConnectionTerminal, terminal);
+            return connection !== null && relationshipForConnection(connection) !== null;
+        },
+        [activeConnectionTerminal],
+    );
+
     const editDependencyEdge = useCallback(
         (edge: Edge) => {
             const dependency = dependencyForEdge(edge);
@@ -318,6 +370,11 @@ export default function VisualBuilder() {
 
     const onBuilderKeyDown = useCallback(
         (event: React.KeyboardEvent<HTMLDivElement>) => {
+            if (event.key === "Escape" && activeConnectionTerminal) {
+                event.preventDefault();
+                setActiveConnectionTerminal(null);
+                return;
+            }
             if (event.key !== "Enter" || event.defaultPrevented || !(event.target instanceof Element)) return;
             const edgeElement = event.target.closest(".react-flow__edge.selected[data-id]");
             const edgeId = edgeElement?.getAttribute("data-id");
@@ -327,7 +384,7 @@ export default function VisualBuilder() {
             event.preventDefault();
             editDependencyEdge(edge);
         },
-        [edges, editDependencyEdge],
+        [activeConnectionTerminal, edges, editDependencyEdge],
     );
 
     // Handle node click - open config panel
@@ -347,6 +404,7 @@ export default function VisualBuilder() {
     // Handle pane click - close config panel
     const onPaneClick = useCallback(() => {
         setSelectedNode(null);
+        setActiveConnectionTerminal(null);
     }, []);
 
     // Handle edge deletion
@@ -599,177 +657,207 @@ export default function VisualBuilder() {
                 ref={reactFlowWrapper}
                 onKeyDown={onBuilderKeyDown}
             >
-                <ReactFlow
-                    nodes={nodes}
-                    edges={routedEdges}
-                    onNodesChange={onNodesChange}
-                    onEdgesChange={onEdgesChange}
-                    onConnect={onConnect}
-                    onNodeClick={onNodeClick}
-                    onNodeDoubleClick={onNodeDoubleClick}
-                    onEdgeContextMenu={onEdgeContextMenu}
-                    onBeforeDelete={onBeforeDelete}
-                    onNodesDelete={onNodesDelete}
-                    onEdgesDelete={onEdgesDelete}
-                    onNodeDragStop={onNodeDragStop}
-                    onDrop={onDrop}
-                    onDragOver={onDragOver}
-                    onPaneClick={onPaneClick}
-                    onInit={setReactFlowInstance}
-                    nodeTypes={nodeTypes}
-                    edgeTypes={edgeTypes}
-                    fitView
-                    minZoom={0.1}
-                    snapToGrid
-                    snapGrid={[15, 15]}
-                    deleteKeyCode={["Backspace", "Delete"]}
-                    multiSelectionKeyCode={["Control", "Meta"]}
-                    connectionLineStyle={{ stroke: "#3b82f6", strokeWidth: 2 }}
-                    defaultEdgeOptions={{
-                        type: "smoothstep",
-                        animated: true,
-                    }}
-                    proOptions={{ hideAttribution: true }}
+                <BuilderConnectionProvider
+                    activeTerminal={activeConnectionTerminal}
+                    isCompatibleTerminal={isCompatibleTerminal}
+                    onTerminalClick={onTerminalClick}
                 >
-                    <Background
-                        color="#1e293b"
-                        gap={20}
-                        size={1}
-                        variant={BackgroundVariant.Dots}
-                    />
+                    <ReactFlow
+                        nodes={nodes}
+                        edges={routedEdges}
+                        onNodesChange={onNodesChange}
+                        onEdgesChange={onEdgesChange}
+                        onConnect={onConnect}
+                        onNodeClick={onNodeClick}
+                        onNodeDoubleClick={onNodeDoubleClick}
+                        onEdgeContextMenu={onEdgeContextMenu}
+                        onBeforeDelete={onBeforeDelete}
+                        onNodesDelete={onNodesDelete}
+                        onEdgesDelete={onEdgesDelete}
+                        onNodeDragStop={onNodeDragStop}
+                        onDrop={onDrop}
+                        onDragOver={onDragOver}
+                        onPaneClick={onPaneClick}
+                        onInit={setReactFlowInstance}
+                        nodeTypes={nodeTypes}
+                        edgeTypes={edgeTypes}
+                        fitView
+                        minZoom={0.1}
+                        snapToGrid
+                        snapGrid={[15, 15]}
+                        deleteKeyCode={["Backspace", "Delete"]}
+                        multiSelectionKeyCode={["Control", "Meta"]}
+                        connectionLineStyle={{ stroke: "#3b82f6", strokeWidth: 2 }}
+                        connectOnClick={false}
+                        nodesConnectable={false}
+                        defaultEdgeOptions={{
+                            type: "smoothstep",
+                            animated: true,
+                        }}
+                        proOptions={{ hideAttribution: true }}
+                    >
+                        <Background
+                            color="#1e293b"
+                            gap={20}
+                            size={1}
+                            variant={BackgroundVariant.Dots}
+                        />
 
-                    <Controls
-                        className="builder-controls"
-                        showZoom={true}
-                        showFitView={true}
-                        showInteractive={false}
-                    />
+                        <Controls
+                            className="builder-controls"
+                            showZoom={true}
+                            showFitView={true}
+                            showInteractive={false}
+                        />
 
-                    <MiniMap
-                        className="builder-minimap"
-                        nodeColor={nodeColor}
-                        maskColor="rgba(0, 0, 0, 0.7)"
-                        pannable
-                        zoomable
-                    />
+                        <MiniMap
+                            className="builder-minimap"
+                            nodeColor={nodeColor}
+                            maskColor="rgba(0, 0, 0, 0.7)"
+                            pannable
+                            zoomable
+                        />
 
-                    {/* Top-left toolbar */}
-                    <Panel position="top-left">
-                        <BuilderToolbar onAdd={handleAdd} />
-                    </Panel>
+                        {/* Top-left toolbar */}
+                        <Panel position="top-left">
+                            <BuilderToolbar onAdd={handleAdd} />
+                        </Panel>
 
-                    {/* Top-right actions */}
-                    <Panel position="top-right">
-                        <div className="builder-actions">
-                            <button
-                                type="button"
-                                onClick={handleCleanLayout}
-                                className="builder-action-btn"
-                                title="Clean layout"
-                                aria-label="Clean layout"
-                                disabled={nodes.length === 0 || !reactFlowInstance}
-                            >
-                                <Brush size={16} />
-                            </button>
-                            <button
-                                onClick={() => setSuggestionsEnabled(!suggestionsEnabled)}
-                                className={`builder-action-btn ${suggestions.length > 0 ? "has-suggestions" : ""}`}
-                                title={
-                                    suggestionsEnabled
-                                        ? `${suggestions.length} suggestions (click to hide)`
-                                        : `${suggestions.length} suggestions (click to show)`
-                                }
-                            >
-                                {suggestions.length > 0 ? <Lightbulb size={16} /> : <LightbulbOff size={16} />}
-                            </button>
-                            <button
-                                onClick={handleExportSvg}
-                                className="builder-action-btn"
-                                title="Export Diagram"
-                            >
-                                <Download size={16} />
-                            </button>
-                        </div>
-                    </Panel>
-
-                    {/* Bottom legend */}
-                    <Panel position="bottom-left">
-                        <section
-                            className="builder-legend connection-legend"
-                            aria-labelledby="connection-types-title"
-                        >
-                            <h2
-                                id="connection-types-title"
-                                className="legend-title"
-                            >
-                                Connection Types
-                            </h2>
-                            <section
-                                className="legend-group"
-                                aria-labelledby="depends-on-title"
-                            >
-                                <h3
-                                    id="depends-on-title"
-                                    className="legend-group-title"
+                        {/* Top-right actions */}
+                        <Panel position="top-right">
+                            <div className="builder-actions">
+                                <button
+                                    type="button"
+                                    onClick={handleCleanLayout}
+                                    className="builder-action-btn"
+                                    title="Clean layout"
+                                    aria-label="Clean layout"
+                                    disabled={nodes.length === 0 || !reactFlowInstance}
                                 >
-                                    Depends On
-                                </h3>
-                                <ul className="legend-list">
-                                    {DEPENDENCY_CONDITION_VISUALS.map((visual) => (
-                                        <li
-                                            key={visual.condition}
-                                            className="legend-item dependency-condition-item"
-                                        >
-                                            <span
-                                                className="legend-line dependency"
-                                                style={{
-                                                    backgroundColor: visual.color,
-                                                    color: visual.color,
-                                                }}
-                                                aria-hidden="true"
-                                            />
-                                            <span>{visual.label}</span>
-                                        </li>
-                                    ))}
+                                    <Brush size={16} />
+                                </button>
+                                <button
+                                    onClick={() => setSuggestionsEnabled(!suggestionsEnabled)}
+                                    className={`builder-action-btn ${suggestions.length > 0 ? "has-suggestions" : ""}`}
+                                    title={
+                                        suggestionsEnabled
+                                            ? `${suggestions.length} suggestions (click to hide)`
+                                            : `${suggestions.length} suggestions (click to show)`
+                                    }
+                                >
+                                    {suggestions.length > 0 ? <Lightbulb size={16} /> : <LightbulbOff size={16} />}
+                                </button>
+                                <button
+                                    onClick={handleExportSvg}
+                                    className="builder-action-btn"
+                                    title="Export Diagram"
+                                >
+                                    <Download size={16} />
+                                </button>
+                            </div>
+                        </Panel>
+
+                        {activeConnectionTerminal && (
+                            <Panel position="top-center">
+                                <div
+                                    className="builder-connection-mode"
+                                    role="status"
+                                    aria-label="Connection mode"
+                                >
+                                    {activeConnectionTerminal.label} selected. Choose a compatible{" "}
+                                    {activeConnectionTerminal.handleType === "source" ? "input" : "output"} point.
+                                    <button
+                                        type="button"
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            setActiveConnectionTerminal(null);
+                                        }}
+                                    >
+                                        Cancel connection
+                                    </button>
+                                </div>
+                            </Panel>
+                        )}
+
+                        {/* Bottom legend */}
+                        <Panel position="bottom-left">
+                            <section
+                                className="builder-legend connection-legend"
+                                aria-labelledby="connection-types-title"
+                            >
+                                <h2
+                                    id="connection-types-title"
+                                    className="legend-title"
+                                >
+                                    Connection Types
+                                </h2>
+                                <section
+                                    className="legend-group"
+                                    aria-labelledby="depends-on-title"
+                                >
+                                    <h3
+                                        id="depends-on-title"
+                                        className="legend-group-title"
+                                    >
+                                        Depends On
+                                    </h3>
+                                    <ul className="legend-list">
+                                        {DEPENDENCY_CONDITION_VISUALS.map((visual) => (
+                                            <li
+                                                key={visual.condition}
+                                                className="legend-item dependency-condition-item"
+                                            >
+                                                <span
+                                                    className="legend-line dependency"
+                                                    style={{
+                                                        backgroundColor: visual.color,
+                                                        color: visual.color,
+                                                    }}
+                                                    aria-hidden="true"
+                                                />
+                                                <span>{visual.label}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </section>
+                                <div
+                                    className="legend-divider"
+                                    aria-hidden="true"
+                                />
+                                <ul
+                                    className="legend-list legend-primary-list"
+                                    aria-label="Other connection types"
+                                >
+                                    <li className="legend-item">
+                                        <span
+                                            className="legend-line network"
+                                            aria-hidden="true"
+                                        />
+                                        <span>Network</span>
+                                    </li>
+                                    <li className="legend-item">
+                                        <span
+                                            className="legend-line volume"
+                                            aria-hidden="true"
+                                        />
+                                        <span>Volume</span>
+                                    </li>
                                 </ul>
                             </section>
-                            <div
-                                className="legend-divider"
-                                aria-hidden="true"
-                            />
-                            <ul
-                                className="legend-list legend-primary-list"
-                                aria-label="Other connection types"
-                            >
-                                <li className="legend-item">
-                                    <span
-                                        className="legend-line network"
-                                        aria-hidden="true"
-                                    />
-                                    <span>Network</span>
-                                </li>
-                                <li className="legend-item">
-                                    <span
-                                        className="legend-line volume"
-                                        aria-hidden="true"
-                                    />
-                                    <span>Volume</span>
-                                </li>
-                            </ul>
-                        </section>
-                    </Panel>
+                        </Panel>
 
-                    {/* Help hint */}
-                    <Panel position="bottom-right">
-                        <div
-                            className="builder-legend"
-                            style={{ fontSize: "12px" }}
-                        >
-                            <p className="text-text-secondary">💡 Click a node to configure</p>
-                            <p className="text-text-secondary">🔗 Drag between nodes to connect</p>
-                        </div>
-                    </Panel>
-                </ReactFlow>
+                        {/* Help hint */}
+                        <Panel position="bottom-right">
+                            <div
+                                className="builder-legend"
+                                style={{ fontSize: "12px" }}
+                            >
+                                <p className="text-text-secondary">💡 Click a node to configure</p>
+                                <p className="text-text-secondary">🔗 Click two connection points to connect</p>
+                            </div>
+                        </Panel>
+                    </ReactFlow>
+                </BuilderConnectionProvider>
             </div>
 
             {/* Config Panel - slides in from right when a node is selected */}
