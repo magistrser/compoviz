@@ -55,7 +55,7 @@ const ServiceNode = memo(({ data, selected }: NodeProps<Node<ServiceNodeData>>) 
                 position={BUILDER_INPUT_POSITION}
                 className="builder-handle relationship-handle handle-deps-in"
                 id="deps-in"
-                style={{ top: "25%" }}
+                style={{ top: "37.5%" }}
             />
             <Handle
                 type="target"
@@ -69,7 +69,7 @@ const ServiceNode = memo(({ data, selected }: NodeProps<Node<ServiceNodeData>>) 
                 position={BUILDER_INPUT_POSITION}
                 className="builder-handle relationship-handle handle-volume-in"
                 id="volume-in"
-                style={{ top: "75%" }}
+                style={{ top: "62.5%" }}
             />
 
             {/* Header */}
@@ -155,7 +155,7 @@ const ServiceNode = memo(({ data, selected }: NodeProps<Node<ServiceNodeData>>) 
                 position={BUILDER_OUTPUT_POSITION}
                 className="builder-handle relationship-handle handle-deps-out"
                 id="deps-out"
-                style={{ top: "50%" }}
+                style={{ top: "37.5%" }}
             />
         </div>
     );

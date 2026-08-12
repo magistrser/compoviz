@@ -58,6 +58,16 @@ const routing = (obstacles: readonly OrthogonalObstacle[]) => ({
 });
 
 describe("getRoundedOrthogonalPath", () => {
+    it("anchors both path endpoints at the centers of the builder handles", () => {
+        const points = getOrthogonalRoutePoints(geometry, "dependency");
+        const path = getRoundedOrthogonalPath(geometry, "dependency")[0];
+
+        expect(points[0]).toEqual({ x: 97, y: 50 });
+        expect(points.at(-1)).toEqual({ x: 503, y: 50 });
+        expect(path).toMatch(/^M97 50/);
+        expect(path).toMatch(/L503 50$/);
+    });
+
     it("falls back to a right-side output and left-side input when positions are omitted", () => {
         const points = getOrthogonalRoutePoints(
             {
@@ -69,8 +79,8 @@ describe("getRoundedOrthogonalPath", () => {
             "volume",
         );
 
-        expect(points[1]).toEqual({ x: 160, y: 50 });
-        expect(points.at(-2)).toEqual({ x: 440, y: 50 });
+        expect(points[1]).toEqual({ x: 157, y: 50 });
+        expect(points.at(-2)).toEqual({ x: 443, y: 50 });
     });
 
     it("recalculates straight segments and rounded corners when an endpoint moves", () => {
@@ -114,9 +124,9 @@ describe("getRoundedOrthogonalPath", () => {
         const networkPath = getRoundedOrthogonalPath(geometry, "network")[0];
         const volumePath = getRoundedOrthogonalPath(geometry, "volume")[0];
 
-        expect(dependencyPath).toContain("630");
-        expect(networkPath).toContain("645");
-        expect(volumePath).toContain("660");
+        expect(dependencyPath).toContain("627");
+        expect(networkPath).toContain("642");
+        expect(volumePath).toContain("657");
     });
 
     it("detours every orthogonal segment around an unrelated block", () => {
@@ -146,9 +156,9 @@ describe("getRoundedOrthogonalPath", () => {
         const network = getOrthogonalRoutePoints(geometry, "network", context);
         const volume = getOrthogonalRoutePoints(geometry, "volume", context);
 
-        expect(dependency[1]?.x).toBe(130);
-        expect(network[1]?.x).toBe(145);
-        expect(volume[1]?.x).toBe(160);
+        expect(dependency[1]?.x).toBe(127);
+        expect(network[1]?.x).toBe(142);
+        expect(volume[1]?.x).toBe(157);
         expect(dependency).not.toEqual(network);
         expect(network).not.toEqual(volume);
         expectRouteToAvoid(dependency, blocker);

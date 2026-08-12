@@ -2672,12 +2672,12 @@ textarea::placeholder {
 }
 .builder-node .handle-deps-in {
     left: -6px;
-    top: 25%;
+    top: 37.5%;
     --relationship-color: #e06c9a;
 }
 .builder-node .handle-deps-out {
     right: -6px;
-    top: 50%;
+    top: 37.5%;
     --relationship-color: #e06c9a;
 }
 .builder-node .handle-network-out {
@@ -2697,7 +2697,7 @@ textarea::placeholder {
 }
 .builder-node .handle-volume-in {
     left: -6px;
-    top: 75%;
+    top: 62.5%;
     --relationship-color: #eab354;
 }
 .builder-node .relationship-handle {
@@ -3826,11 +3826,9 @@ textarea::placeholder {
 @keyframes node-pop-in {
     0% {
         opacity: 0;
-        transform: scale(0.9);
     }
     to {
         opacity: 1;
-        transform: scale(1);
     }
 }
 .node-animate {

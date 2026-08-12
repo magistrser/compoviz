@@ -13,11 +13,12 @@ vi.mock("@xyflow/react", async (importOriginal) => {
     const actual = await importOriginal<typeof ReactFlowModule>();
     return {
         ...actual,
-        Handle: ({ id, position, type }: HandleProps) => (
+        Handle: ({ id, position, style, type }: HandleProps) => (
             <span
                 data-testid={`handle-${id ?? type}`}
                 data-position={position}
                 data-type={type}
+                style={style}
             />
         ),
     };
@@ -52,6 +53,15 @@ describe("builder node connection handles", () => {
         }
         expect(screen.getByTestId("handle-deps-out")).toHaveAttribute("data-type", "source");
         expect(screen.getByTestId("handle-deps-out")).toHaveAttribute("data-position", "right");
+    });
+
+    it("aligns dependency input and output while keeping resource inputs in separate lanes", () => {
+        render(<ServiceNode {...serviceProps} />);
+
+        expect(screen.getByTestId("handle-deps-in")).toHaveStyle({ top: "37.5%" });
+        expect(screen.getByTestId("handle-deps-out")).toHaveStyle({ top: "37.5%" });
+        expect(screen.getByTestId("handle-network-in")).toHaveStyle({ top: "50%" });
+        expect(screen.getByTestId("handle-volume-in")).toHaveStyle({ top: "62.5%" });
     });
 
     it.each([

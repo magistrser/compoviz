@@ -2,6 +2,7 @@ import { Position, type GetSmoothStepPathParams, type Node } from "@xyflow/react
 import {
     BUILDER_INPUT_POSITION,
     BUILDER_OUTPUT_POSITION,
+    BUILDER_HANDLE_RADIUS,
     BUILDER_RELATIONSHIP_LANE_OFFSETS,
     type BuilderRelationshipLane,
 } from "../../utils/builderConnectionGeometry";
@@ -378,11 +379,13 @@ export const getOrthogonalRoutePoints = (
     relationship: RelationshipLane = "dependency",
     routing?: OrthogonalRoutingContext,
 ): OrthogonalPoint[] => {
-    const source = { x: params.sourceX, y: params.sourceY };
-    const target = { x: params.targetX, y: params.targetY };
+    const sourcePosition = params.sourcePosition ?? BUILDER_OUTPUT_POSITION;
+    const targetPosition = params.targetPosition ?? BUILDER_INPUT_POSITION;
+    const source = moveFromTerminal({ x: params.sourceX, y: params.sourceY }, sourcePosition, -BUILDER_HANDLE_RADIUS);
+    const target = moveFromTerminal({ x: params.targetX, y: params.targetY }, targetPosition, -BUILDER_HANDLE_RADIUS);
     const laneOffset = BUILDER_RELATIONSHIP_LANE_OFFSETS[relationship];
-    const sourceLead = moveFromTerminal(source, params.sourcePosition ?? BUILDER_OUTPUT_POSITION, laneOffset);
-    const targetLead = moveFromTerminal(target, params.targetPosition ?? BUILDER_INPUT_POSITION, laneOffset);
+    const sourceLead = moveFromTerminal(source, sourcePosition, laneOffset);
+    const targetLead = moveFromTerminal(target, targetPosition, laneOffset);
     const expandedObstacles = routing
         ? [...routing.obstacles]
               .sort((left, right) => left.id.localeCompare(right.id))

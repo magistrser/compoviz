@@ -192,6 +192,26 @@ The system SHALL render dependency, network, and volume relationships in the Bui
 - **WHEN** a user drags an unrelated resource block across an existing relationship path
 - **THEN** the relationship deterministically reroutes around the block without entering its interior rectangle
 
+### Requirement: Align matching builder dependency terminals
+
+The system SHALL place the dependency input and dependency output terminals of every builder service node at the same vertical offset. The dependency, network, and named-volume inputs SHALL form a centered, evenly spaced group with `12.5` percentage points between adjacent terminals.
+
+#### Scenario: Display dependency terminals on a service
+
+- **WHEN** the Build view renders a service node
+- **THEN** its dependency input and dependency output terminals share one horizontal alignment
+- **AND** its dependency, network, and named-volume inputs use vertical offsets of `37.5%`, `50%`, and `62.5%`, respectively
+
+### Requirement: Anchor builder relationships to terminal centers
+
+The system SHALL render every builder relationship line from the center of its source terminal dot to the center of its target terminal dot after node entrance effects complete.
+
+#### Scenario: Display a builder relationship
+
+- **WHEN** the Build view renders a dependency, network, or named-volume relationship
+- **THEN** the first point of its line coincides with the center of its source terminal dot
+- **AND** the last point of its line coincides with the center of its target terminal dot
+
 ### Requirement: Choose builder dependency conditions
 
 The system SHALL let users choose `service_started`, `service_healthy`, or `service_completed_successfully` when creating a dependency relationship in the Build view and SHALL let users change the condition of an existing dependency relationship. The condition control SHALL be an accessible in-application popup, SHALL use the same labels and visual keys as the dependency-condition legend, and SHALL commit a relationship edit only after confirmation.
