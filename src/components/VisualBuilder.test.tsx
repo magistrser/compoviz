@@ -27,6 +27,8 @@ vi.mock("@xyflow/react", () => ({
         onBeforeDelete,
         onNodesDelete,
         onConnect,
+        onNodeClick,
+        onPaneClick,
         onEdgeDoubleClick,
         onEdgeContextMenu,
         onEdgesDelete,
@@ -43,12 +45,18 @@ vi.mock("@xyflow/react", () => ({
         onBeforeDelete?: OnBeforeDelete<Node, Edge>;
         onNodesDelete?: (nodes: Node[]) => void;
         onConnect?: (connection: Connection) => void;
+        onNodeClick?: (event: ReactMouseEvent, node: Node) => void;
+        onPaneClick?: () => void;
         onEdgeDoubleClick?: (event: ReactMouseEvent, edge: Edge) => void;
         onEdgeContextMenu?: (event: ReactMouseEvent, edge: Edge) => void;
         onEdgesDelete?: (edges: Edge[]) => void;
         minZoom?: number;
     }) => {
         const dependencyEdge = edges?.find((edge) => edge.id.startsWith("dep-"));
+        const selectedEdgeIds = edges
+            ?.filter((edge) => edge.selected)
+            .map((edge) => edge.id)
+            .sort();
         const networkBundleTargets = edges
             ?.filter((edge) => edge.type === "networkEdge")
             .map(
@@ -69,6 +77,16 @@ vi.mock("@xyflow/react", () => ({
                 <output aria-label="Canvas pre-delete enabled">{String(Boolean(onBeforeDelete))}</output>
                 <output aria-label="Canvas minimum zoom">{String(minZoom)}</output>
                 <output aria-label="Network bundle targets">{JSON.stringify(networkBundleTargets ?? [])}</output>
+                <output aria-label="Selected builder relationships">{JSON.stringify(selectedEdgeIds ?? [])}</output>
+                {nodes?.map((node) => (
+                    <button
+                        key={node.id}
+                        onClick={(event) => onNodeClick?.(event, node)}
+                    >
+                        Select {node.id}
+                    </button>
+                ))}
+                <button onClick={() => onPaneClick?.()}>Clear node selection</button>
                 <button
                     onClick={() =>
                         onConnect?.({
@@ -494,6 +512,40 @@ describe("VisualBuilder Component", () => {
                 '[["service-api","service-worker"],["service-api","service-worker"]]',
             ),
         );
+    });
+
+    it("highlights every relationship connected to the selected resource", async () => {
+        const user = userEvent.setup();
+        renderBuilder();
+        await addService(user, "api");
+        await addService(user, "db");
+        await addService(user, "worker");
+
+        await user.click(screen.getByRole("button", { name: "Network" }));
+        let dialog = screen.getByRole("dialog", { name: "Add network" });
+        await user.type(within(dialog).getByRole("textbox", { name: "Network name" }), "backend");
+        await user.click(within(dialog).getByRole("button", { name: "Add" }));
+
+        await user.click(screen.getByRole("button", { name: "Connect dependency" }));
+        dialog = screen.getByRole("dialog", { name: "Dependency condition" });
+        await user.click(within(dialog).getByRole("button", { name: "Create dependency" }));
+        await user.click(screen.getByRole("button", { name: "Connect network input" }));
+        await user.click(screen.getByRole("button", { name: "Connect worker network input" }));
+
+        await waitFor(() => expect(screen.getByTestId("edges-count")).toHaveTextContent("3"));
+        const yamlBeforeSelection = screen.getByLabelText("Builder YAML").textContent;
+
+        await user.click(screen.getByRole("button", { name: "Select service-api" }));
+        expect(screen.getByLabelText("Selected builder relationships")).toHaveTextContent(
+            '["dep-api-db","net-api-backend"]',
+        );
+
+        await user.click(screen.getByRole("button", { name: "Select service-worker" }));
+        expect(screen.getByLabelText("Selected builder relationships")).toHaveTextContent('["net-worker-backend"]');
+
+        await user.click(screen.getByRole("button", { name: "Clear node selection" }));
+        expect(screen.getByLabelText("Selected builder relationships")).toHaveTextContent("[]");
+        expect(screen.getByLabelText("Builder YAML").textContent).toBe(yamlBeforeSelection);
     });
 
     it("chooses a condition before creating a dependency and undoes it atomically", async () => {

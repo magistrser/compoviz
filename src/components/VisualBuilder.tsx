@@ -229,6 +229,9 @@ export default function VisualBuilder() {
                 const networkBundleTargetNodeIds = networkBundleTargetsBySource.get(edge.source);
                 return {
                     ...edge,
+                    selected:
+                        edge.selected ||
+                        (selectedNode !== null && (edge.source === selectedNode.id || edge.target === selectedNode.id)),
                     data: {
                         ...edge.data,
                         routing: {
@@ -242,7 +245,7 @@ export default function VisualBuilder() {
                     },
                 };
             }),
-        [edges, networkBundleTargetsBySource, routingObstacles],
+        [edges, networkBundleTargetsBySource, routingObstacles, selectedNode],
     );
 
     // Sync nodes when state changes externally
