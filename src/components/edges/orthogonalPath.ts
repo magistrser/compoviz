@@ -29,6 +29,7 @@ export interface OrthogonalRoutingContext {
     readonly obstacles: readonly OrthogonalObstacle[];
     readonly sourceNodeId: string;
     readonly targetNodeId: string;
+    readonly networkBundleTargetNodeIds?: readonly string[];
 }
 
 export interface OrthogonalEdgeRoutingData extends Record<string, unknown> {
@@ -150,6 +151,15 @@ const segmentIsClear = (
     obstacles: readonly OrthogonalObstacle[],
 ): boolean => obstacles.every((obstacle) => !segmentEnters(start, end, obstacle));
 
+const routeIsClear = (points: readonly OrthogonalPoint[], obstacles: readonly OrthogonalObstacle[]): boolean => {
+    for (let index = 1; index < points.length; index++) {
+        const start = points[index - 1];
+        const end = points[index];
+        if (!start || !end || !segmentIsClear(start, end, obstacles)) return false;
+    }
+    return true;
+};
+
 const expandObstacle = (
     obstacle: OrthogonalObstacle,
     relationship: RelationshipLane,
@@ -164,6 +174,57 @@ const expandObstacle = (
         width: obstacle.width + clearance * 2,
         height: obstacle.height + clearance * 2,
     };
+};
+
+const bundledNetworkRoute = (
+    source: OrthogonalPoint,
+    target: OrthogonalPoint,
+    sourceLead: OrthogonalPoint,
+    targetLead: OrthogonalPoint,
+    sourcePosition: Position,
+    targetPosition: Position,
+    routing: OrthogonalRoutingContext,
+    expandedObstacles: readonly OrthogonalObstacle[],
+): OrthogonalPoint[] | null => {
+    const targetNodeIds = routing.networkBundleTargetNodeIds;
+    if (
+        !targetNodeIds ||
+        targetNodeIds.length < 2 ||
+        sourcePosition !== Position.Right ||
+        targetPosition !== Position.Left ||
+        !targetNodeIds.includes(routing.targetNodeId)
+    ) {
+        return null;
+    }
+
+    const sourceObstacle = routing.obstacles.find((obstacle) => obstacle.id === routing.sourceNodeId);
+    const targetObstacles = targetNodeIds.map((targetId) =>
+        routing.obstacles.find((obstacle) => obstacle.id === targetId),
+    );
+    const minimumBundleGap = BUILDER_RELATIONSHIP_LANE_OFFSETS.network * 2;
+    if (
+        !sourceObstacle ||
+        targetObstacles.some(
+            (obstacle) => !obstacle || obstacle.x - (sourceObstacle.x + sourceObstacle.width) < minimumBundleGap,
+        )
+    ) {
+        return null;
+    }
+
+    const top = Math.min(...routing.obstacles.map((obstacle) => obstacle.y));
+    const trunkY = top - RELATIONSHIP_CLEARANCES.network - CORNER_RADIUS;
+    const candidate = [
+        source,
+        sourceLead,
+        { x: sourceLead.x, y: trunkY },
+        { x: targetLead.x, y: trunkY },
+        targetLead,
+        target,
+    ];
+    const unrelatedObstacles = expandedObstacles.filter(
+        (obstacle) => obstacle.id !== routing.sourceNodeId && obstacle.id !== routing.targetNodeId,
+    );
+    return routeIsClear(candidate, unrelatedObstacles) ? candidate : null;
 };
 
 const findMiddleRoute = (
@@ -391,6 +452,19 @@ export const getOrthogonalRoutePoints = (
               .sort((left, right) => left.id.localeCompare(right.id))
               .map((obstacle) => expandObstacle(obstacle, relationship, routing))
         : [];
+    if (relationship === "network" && routing) {
+        const bundled = bundledNetworkRoute(
+            source,
+            target,
+            sourceLead,
+            targetLead,
+            sourcePosition,
+            targetPosition,
+            routing,
+            expandedObstacles,
+        );
+        if (bundled) return bundled;
+    }
     const middle = findMiddleRoute(sourceLead, targetLead, expandedObstacles, laneOffset + CORNER_RADIUS + 30);
     if (middle) return [source, ...middle, target];
 

@@ -49,6 +49,13 @@ vi.mock("@xyflow/react", () => ({
         minZoom?: number;
     }) => {
         const dependencyEdge = edges?.find((edge) => edge.id.startsWith("dep-"));
+        const networkBundleTargets = edges
+            ?.filter((edge) => edge.type === "networkEdge")
+            .map(
+                (edge) =>
+                    (edge.data?.routing as { networkBundleTargetNodeIds?: readonly string[] } | undefined)
+                        ?.networkBundleTargetNodeIds,
+            );
         return (
             <div
                 data-testid="react-flow"
@@ -61,6 +68,7 @@ vi.mock("@xyflow/react", () => ({
                 </output>
                 <output aria-label="Canvas pre-delete enabled">{String(Boolean(onBeforeDelete))}</output>
                 <output aria-label="Canvas minimum zoom">{String(minZoom)}</output>
+                <output aria-label="Network bundle targets">{JSON.stringify(networkBundleTargets ?? [])}</output>
                 <button
                     onClick={() =>
                         onConnect?.({
@@ -104,6 +112,18 @@ vi.mock("@xyflow/react", () => ({
                     }
                 >
                     Connect network input
+                </button>
+                <button
+                    onClick={() =>
+                        onConnect?.({
+                            source: "network-backend",
+                            target: "service-worker",
+                            sourceHandle: "network-out",
+                            targetHandle: "network-in",
+                        })
+                    }
+                >
+                    Connect worker network input
                 </button>
                 <button
                     onClick={() =>
@@ -161,7 +181,7 @@ vi.mock("@xyflow/react", () => ({
 }));
 
 const ComposeProbe = () => {
-    const { snapshot } = useComposeWorkspace();
+    const { snapshot, replace } = useComposeWorkspace();
     const { moveHistory } = useComposeEditing();
     const { state } = snapshot;
     const serviceNames = Object.keys(state.services);
@@ -178,6 +198,43 @@ const ComposeProbe = () => {
                 {JSON.stringify(state.services.api?.depends_on ?? [])}
             </output>
             <output aria-label="Builder YAML">{snapshot.yaml}</output>
+            <button
+                onClick={() =>
+                    void replace({
+                        kind: "yaml",
+                        importedFilename: "loaded-compose.yml",
+                        yaml: [
+                            "services:",
+                            "  api:",
+                            "    image: node:22",
+                            "    depends_on:",
+                            "      - db",
+                            "  db:",
+                            "    image: postgres:17",
+                        ].join("\n"),
+                    })
+                }
+            >
+                Load unpositioned source
+            </button>
+            <button
+                onClick={() =>
+                    void replace({
+                        kind: "yaml",
+                        importedFilename: "arranged-compose.yml",
+                        yaml: [
+                            "services:",
+                            "  api:",
+                            "    image: node:22",
+                            "    _position:",
+                            "      x: 765",
+                            "      y: 432",
+                        ].join("\n"),
+                    })
+                }
+            >
+                Load arranged source
+            </button>
             <button onClick={() => moveHistory("undo")}>Undo builder history</button>
         </>
     );
@@ -351,6 +408,37 @@ describe("VisualBuilder Component", () => {
         expect(screen.getByLabelText("Builder services")).toHaveTextContent("api");
     });
 
+    it("automatically cleans an unpositioned Compose source once after the canvas is ready", async () => {
+        const user = userEvent.setup();
+        renderBuilder();
+
+        await user.click(screen.getByRole("button", { name: "Initialize canvas" }));
+        await user.click(screen.getByRole("button", { name: "Load unpositioned source" }));
+
+        await waitFor(() => expect(screen.getByLabelText("Builder services")).toHaveTextContent("api,db"));
+        await waitFor(() =>
+            expect(screen.getByLabelText("Builder service position")).toHaveTextContent('{"x":450,"y":30}'),
+        );
+        expect(fitViewMock).toHaveBeenCalledTimes(1);
+
+        await user.click(screen.getByRole("button", { name: "Undo builder history" }));
+        await waitFor(() => expect(screen.getByLabelText("Builder service position")).toBeEmptyDOMElement());
+        expect(fitViewMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("preserves a loaded Compose source that already has a stored position", async () => {
+        const user = userEvent.setup();
+        renderBuilder();
+
+        await user.click(screen.getByRole("button", { name: "Initialize canvas" }));
+        await user.click(screen.getByRole("button", { name: "Load arranged source" }));
+
+        await waitFor(() =>
+            expect(screen.getByLabelText("Builder service position")).toHaveTextContent('{"x":765,"y":432}'),
+        );
+        expect(fitViewMock).not.toHaveBeenCalled();
+    });
+
     it("adds and selects a named resource from the toolbar", async () => {
         const user = userEvent.setup();
         renderBuilder();
@@ -386,6 +474,26 @@ describe("VisualBuilder Component", () => {
 
         await user.click(screen.getByRole("button", { name: "Disconnect network input" }));
         await waitFor(() => expect(screen.getByLabelText("Builder service networks")).toHaveTextContent("[]"));
+    });
+
+    it("supplies the same stable sibling targets to every edge from a shared network", async () => {
+        const user = userEvent.setup();
+        renderBuilder();
+        await addService(user, "api");
+        await addService(user, "worker");
+
+        await user.click(screen.getByRole("button", { name: "Network" }));
+        const dialog = screen.getByRole("dialog", { name: "Add network" });
+        await user.type(within(dialog).getByRole("textbox", { name: "Network name" }), "backend");
+        await user.click(within(dialog).getByRole("button", { name: "Add" }));
+        await user.click(screen.getByRole("button", { name: "Connect network input" }));
+        await user.click(screen.getByRole("button", { name: "Connect worker network input" }));
+
+        await waitFor(() =>
+            expect(screen.getByLabelText("Network bundle targets")).toHaveTextContent(
+                '[["service-api","service-worker"],["service-api","service-worker"]]',
+            ),
+        );
     });
 
     it("chooses a condition before creating a dependency and undoes it atomically", async () => {

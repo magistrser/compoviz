@@ -1,9 +1,11 @@
 import type { Edge, Node } from "@xyflow/react";
 import { describe, expect, it } from "vitest";
-import { layoutBuilderGraph } from "./builderLayout";
+import { dimensionsForBuilderNode, layoutBuilderGraph } from "./builderLayout";
 
 const positionsById = (nodes: readonly Node[]) =>
     Object.fromEntries(nodes.map((node) => [node.id, node.position] as const));
+
+const centerY = (node: Node) => node.position.y + dimensionsForBuilderNode(node).height / 2;
 
 describe("layoutBuilderGraph", () => {
     it("returns the same left-to-right placement when input order changes", () => {
@@ -97,6 +99,73 @@ describe("layoutBuilderGraph", () => {
                 expect(separatedHorizontally || separatedVertically).toBe(true);
             }
         }
+    });
+
+    it("compacts a shared-network service graph into aligned horizontal lanes", () => {
+        const serviceNames = [
+            "file_storage",
+            "document_storage",
+            "street_falcon_db",
+            "rabbitmq",
+            "street_falcon_service",
+            "street_falcon_dev_api",
+            "spec_publisher",
+            "local_complex_monitoring",
+            "offence_collector",
+            "local_complex_monitoring_listener",
+        ];
+        const nodes: Node[] = [
+            ...serviceNames.map((name) => ({
+                id: `service-${name}`,
+                type: "serviceNode",
+                position: { x: 0, y: 0 },
+                data: {},
+            })),
+            { id: "network-owl_network", type: "networkNode", position: { x: 0, y: 0 }, data: {} },
+        ];
+        const networkServices = [
+            "street_falcon_db",
+            "rabbitmq",
+            "street_falcon_service",
+            "street_falcon_dev_api",
+            "spec_publisher",
+            "local_complex_monitoring",
+            "offence_collector",
+        ];
+        const dependencies: Array<readonly [source: string, target: string]> = [
+            ["street_falcon_db", "street_falcon_service"],
+            ["rabbitmq", "street_falcon_service"],
+            ["street_falcon_db", "street_falcon_dev_api"],
+            ["rabbitmq", "street_falcon_dev_api"],
+            ["street_falcon_service", "local_complex_monitoring"],
+            ["street_falcon_db", "offence_collector"],
+            ["rabbitmq", "offence_collector"],
+            ["local_complex_monitoring", "local_complex_monitoring_listener"],
+        ];
+        const edges: Edge[] = [
+            ...networkServices.map((name) => ({
+                id: `net-${name}-owl_network`,
+                source: "network-owl_network",
+                target: `service-${name}`,
+                type: "networkEdge",
+            })),
+            ...dependencies.map(([source, target]) => ({
+                id: `dep-${target}-${source}`,
+                source: `service-${source}`,
+                target: `service-${target}`,
+                type: "dependsOnEdge",
+            })),
+        ];
+
+        const result = layoutBuilderGraph(nodes, edges);
+        const byId = new Map(result.map((node) => [node.id, node] as const));
+        const verticalLanes = new Set(result.map(centerY));
+        const mainLane = centerY(byId.get("network-owl_network")!);
+
+        expect(verticalLanes).toHaveLength(3);
+        expect(centerY(byId.get("service-street_falcon_service")!)).toBe(mainLane);
+        expect(centerY(byId.get("service-local_complex_monitoring")!)).toBe(mainLane);
+        expect(centerY(byId.get("service-local_complex_monitoring_listener")!)).toBe(mainLane);
     });
 
     it("returns an empty layout for an empty builder", () => {

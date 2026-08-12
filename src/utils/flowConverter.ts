@@ -5,7 +5,7 @@ import type { ComposeAST } from "../models/ComposeAST";
 import type { Position, Suggestion } from "../models/composeTypes";
 import { BUILDER_INPUT_POSITION, BUILDER_OUTPUT_POSITION } from "./builderConnectionGeometry";
 
-function positionFromRaw(value: unknown): Position | null {
+export function positionFromRaw(value: unknown): Position | null {
     if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
     if (!("_position" in value)) return null;
     const position = value._position;

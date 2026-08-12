@@ -6,6 +6,7 @@ import {
     routingObstaclesForNodes,
     type OrthogonalObstacle,
     type OrthogonalPoint,
+    type OrthogonalRoutingContext,
 } from "./orthogonalPath";
 
 const segmentEntersRectangle = (start: OrthogonalPoint, end: OrthogonalPoint, obstacle: OrthogonalObstacle) => {
@@ -164,6 +165,109 @@ describe("getRoundedOrthogonalPath", () => {
         expectRouteToAvoid(dependency, blocker);
         expectRouteToAvoid(network, blocker);
         expectRouteToAvoid(volume, blocker);
+    });
+
+    it("routes services on one network through a shared trunk before branching", () => {
+        const network: OrthogonalObstacle = { id: "network-shared", x: 0, y: 45, width: 120, height: 120 };
+        const serviceA: OrthogonalObstacle = { id: "service-a", x: 450, y: 30, width: 240, height: 150 };
+        const serviceB: OrthogonalObstacle = { id: "service-b", x: 870, y: 270, width: 240, height: 150 };
+        const obstacles = [network, serviceA, serviceB];
+        const bundleTargetNodeIds = [serviceA.id, serviceB.id];
+        const routingFor = (targetNodeId: string) =>
+            ({
+                obstacles,
+                sourceNodeId: network.id,
+                targetNodeId,
+                networkBundleTargetNodeIds: bundleTargetNodeIds,
+            }) as OrthogonalRoutingContext;
+
+        const first = getOrthogonalRoutePoints(
+            {
+                sourceX: 120,
+                sourceY: 105,
+                targetX: 450,
+                targetY: 105,
+                sourcePosition: Position.Right,
+                targetPosition: Position.Left,
+            },
+            "network",
+            routingFor(serviceA.id),
+        );
+        const second = getOrthogonalRoutePoints(
+            {
+                sourceX: 120,
+                sourceY: 105,
+                targetX: 870,
+                targetY: 345,
+                sourcePosition: Position.Right,
+                targetPosition: Position.Left,
+            },
+            "network",
+            routingFor(serviceB.id),
+        );
+
+        expect(first.slice(0, 3)).toEqual(second.slice(0, 3));
+        expect(first[2]?.y).toBeLessThan(network.y);
+        expect(first.at(-1)).toEqual({ x: 453, y: 105 });
+        expect(second.at(-1)).toEqual({ x: 873, y: 345 });
+        expectRouteToAvoid(first, serviceB);
+        expectRouteToAvoid(second, serviceA);
+    });
+
+    it("falls back to an individual route when a network target is not to the right", () => {
+        const network: OrthogonalObstacle = { id: "network-shared", x: 0, y: 45, width: 120, height: 120 };
+        const leftTarget: OrthogonalObstacle = { id: "service-left", x: -400, y: 30, width: 240, height: 150 };
+        const rightTarget: OrthogonalObstacle = { id: "service-right", x: 450, y: 270, width: 240, height: 150 };
+        const obstacles = [network, leftTarget, rightTarget];
+        const individualRouting: OrthogonalRoutingContext = {
+            obstacles,
+            sourceNodeId: network.id,
+            targetNodeId: leftTarget.id,
+        };
+        const bundledRouting = {
+            ...individualRouting,
+            networkBundleTargetNodeIds: [leftTarget.id, rightTarget.id],
+        } as OrthogonalRoutingContext;
+        const leftGeometry = {
+            sourceX: 120,
+            sourceY: 105,
+            targetX: -400,
+            targetY: 105,
+            sourcePosition: Position.Right,
+            targetPosition: Position.Left,
+        };
+
+        expect(getOrthogonalRoutePoints(leftGeometry, "network", bundledRouting)).toEqual(
+            getOrthogonalRoutePoints(leftGeometry, "network", individualRouting),
+        );
+    });
+
+    it("falls back when a network target has no room for opposing terminal leads", () => {
+        const network: OrthogonalObstacle = { id: "network-shared", x: 0, y: 45, width: 120, height: 120 };
+        const closeTarget: OrthogonalObstacle = { id: "service-close", x: 170, y: 30, width: 240, height: 150 };
+        const farTarget: OrthogonalObstacle = { id: "service-far", x: 600, y: 270, width: 240, height: 150 };
+        const obstacles = [network, closeTarget, farTarget];
+        const individualRouting: OrthogonalRoutingContext = {
+            obstacles,
+            sourceNodeId: network.id,
+            targetNodeId: closeTarget.id,
+        };
+        const bundledRouting: OrthogonalRoutingContext = {
+            ...individualRouting,
+            networkBundleTargetNodeIds: [closeTarget.id, farTarget.id],
+        };
+        const closeGeometry = {
+            sourceX: 120,
+            sourceY: 105,
+            targetX: 170,
+            targetY: 105,
+            sourcePosition: Position.Right,
+            targetPosition: Position.Left,
+        };
+
+        expect(getOrthogonalRoutePoints(closeGeometry, "network", bundledRouting)).toEqual(
+            getOrthogonalRoutePoints(closeGeometry, "network", individualRouting),
+        );
     });
 
     it("derives obstacle rectangles from measured node dimensions with stable fallbacks", () => {

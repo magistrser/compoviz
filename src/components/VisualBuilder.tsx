@@ -23,7 +23,7 @@ import { DependencyConditions, type DependencyCondition } from "../models";
 import { routingObstaclesForNodes } from "./edges/orthogonalPath";
 import BuilderToolbar from "./BuilderToolbar";
 import NodeConfigPanel from "./NodeConfigPanel";
-import { stateToFlow, parseNodeId } from "../utils/flowConverter";
+import { stateToFlow, parseNodeId, positionFromRaw } from "../utils/flowConverter";
 import { layoutBuilderGraph } from "../utils/builderLayout";
 import { mergeFlowElements } from "../utils/objectUtils";
 import { Brush, Download, Lightbulb, LightbulbOff } from "lucide-react";
@@ -152,6 +152,7 @@ export default function VisualBuilder() {
     const { suggestionsEnabled, setSuggestionsEnabled } = useUI();
     const popup = usePopup();
     const reactFlowWrapper = useRef<HTMLDivElement>(null);
+    const autoCleanedGenerationRef = useRef<number | null>(null);
     const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance<Node, Edge> | null>(null);
     const [selectedNode, setSelectedNode] = useState<SelectedNode | null>(null);
 
@@ -202,22 +203,46 @@ export default function VisualBuilder() {
 
     const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+    const hasStoredResourcePosition = useMemo(
+        () =>
+            initialNodes.some((node) => {
+                const { type, name } = parseNodeId(node.id);
+                if (!isBuilderNodeType(type)) return false;
+                return positionFromRaw(state[pluralResourceTypes[type]][name]) !== null;
+            }),
+        [initialNodes, state],
+    );
 
     const routingObstacles = useMemo(() => routingObstaclesForNodes(nodes), [nodes]);
+    const networkBundleTargetsBySource = useMemo(() => {
+        const targetsBySource = new Map<string, string[]>();
+        for (const edge of edges) {
+            if (edge.type !== "networkEdge") continue;
+            targetsBySource.set(edge.source, [...(targetsBySource.get(edge.source) ?? []), edge.target]);
+        }
+        for (const targets of targetsBySource.values()) targets.sort((left, right) => left.localeCompare(right));
+        return targetsBySource;
+    }, [edges]);
     const routedEdges = useMemo(
         () =>
-            edges.map((edge) => ({
-                ...edge,
-                data: {
-                    ...edge.data,
-                    routing: {
-                        obstacles: routingObstacles,
-                        sourceNodeId: edge.source,
-                        targetNodeId: edge.target,
+            edges.map((edge) => {
+                const networkBundleTargetNodeIds = networkBundleTargetsBySource.get(edge.source);
+                return {
+                    ...edge,
+                    data: {
+                        ...edge.data,
+                        routing: {
+                            obstacles: routingObstacles,
+                            sourceNodeId: edge.source,
+                            targetNodeId: edge.target,
+                            ...(networkBundleTargetNodeIds && networkBundleTargetNodeIds.length > 1
+                                ? { networkBundleTargetNodeIds }
+                                : {}),
+                        },
                     },
-                },
-            })),
-        [edges, routingObstacles],
+                };
+            }),
+        [edges, networkBundleTargetsBySource, routingObstacles],
     );
 
     // Sync nodes when state changes externally
@@ -492,26 +517,58 @@ export default function VisualBuilder() {
         URL.revokeObjectURL(url);
     }, []);
 
+    const applyCleanLayout = useCallback(
+        (nodesToLayout: Node[], edgesToLayout: Edge[]) => {
+            if (nodesToLayout.length === 0 || !reactFlowInstance) return false;
+
+            const laidOutNodes = layoutBuilderGraph(nodesToLayout, edgesToLayout);
+            const positions: ComposeResourcePosition[] = [];
+            for (const node of laidOutNodes) {
+                const { type, name } = parseNodeId(node.id);
+                if (!isBuilderNodeType(type)) continue;
+                positions.push({ resource: type, name, position: node.position });
+            }
+            if (positions.length === 0) return false;
+
+            const outcome = commit({ type: "position-resources", positions });
+            if (outcome.status === "rejected") return false;
+
+            setNodes(laidOutNodes);
+            window.requestAnimationFrame(() => {
+                void reactFlowInstance.fitView({ padding: CLEAN_LAYOUT_VIEWPORT_PADDING, duration: 300 });
+            });
+            return true;
+        },
+        [commit, reactFlowInstance, setNodes],
+    );
+
     const handleCleanLayout = useCallback(() => {
-        if (nodes.length === 0 || !reactFlowInstance) return;
+        applyCleanLayout(nodes, edges);
+    }, [applyCleanLayout, edges, nodes]);
 
-        const laidOutNodes = layoutBuilderGraph(nodes, edges);
-        const positions: ComposeResourcePosition[] = [];
-        for (const node of laidOutNodes) {
-            const { type, name } = parseNodeId(node.id);
-            if (!isBuilderNodeType(type)) continue;
-            positions.push({ resource: type, name, position: node.position });
+    useEffect(() => {
+        const generation = snapshot.processing.generation;
+        if (
+            snapshot.source === null ||
+            initialNodes.length === 0 ||
+            hasStoredResourcePosition ||
+            autoCleanedGenerationRef.current === generation
+        ) {
+            return;
         }
-        if (positions.length === 0) return;
 
-        const outcome = commit({ type: "position-resources", positions });
-        if (outcome.status === "rejected") return;
-
-        setNodes(laidOutNodes);
-        window.requestAnimationFrame(() => {
-            void reactFlowInstance.fitView({ padding: CLEAN_LAYOUT_VIEWPORT_PADDING, duration: 300 });
-        });
-    }, [commit, edges, nodes, reactFlowInstance, setNodes]);
+        autoCleanedGenerationRef.current = generation;
+        if (!applyCleanLayout(initialNodes, initialEdges)) {
+            autoCleanedGenerationRef.current = null;
+        }
+    }, [
+        applyCleanLayout,
+        hasStoredResourcePosition,
+        initialEdges,
+        initialNodes,
+        snapshot.processing.generation,
+        snapshot.source,
+    ]);
 
     // Mini-map node color
     const nodeColor = useCallback((node: Node) => {
